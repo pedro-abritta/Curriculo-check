@@ -37,9 +37,9 @@
 - app/models/ → schemas
 
 ## Roadmap
-- Fase 0: Stack
-- Fase 1: Setup
-- Fase 2: Upload & Parsing
+- Fase 0: Stack ✅
+- Fase 1: Setup ✅
+- Fase 2: Upload & Parsing ✅
 - Fase 3.1: Seção Contato
 - Fase 3.2: Seção Skills ← atual
 - Fase 3.3: Seção Datas
