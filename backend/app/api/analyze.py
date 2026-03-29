@@ -2,6 +2,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from app.services.contact_analyzer import analyze_contact
 from app.services.dates_analyzer import analyze_dates
+from app.services.impact_analyzer import analyze_impact
 from app.services.parser import extract_text_from_docx, extract_text_from_pdf
 from app.services.section_toggle import ACTIVE_SECTIONS
 from app.services.skills_analyzer import analyze_skills
@@ -81,6 +82,7 @@ async def analyze(
 
     dates = analyze_dates(resume_text) if ACTIVE_SECTIONS["dates"] else _DISABLED
     summary = analyze_summary(resume_text, job_skills) if ACTIVE_SECTIONS["summary"] else _DISABLED
+    impact = analyze_impact(resume_text) if ACTIVE_SECTIONS["impact_phrases"] else _DISABLED
 
     return {
         "status": "success",
@@ -92,4 +94,5 @@ async def analyze(
         "skills": skills,
         "dates": dates,
         "summary": summary,
+        "impact": impact,
     }
