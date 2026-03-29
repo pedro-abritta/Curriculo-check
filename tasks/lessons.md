@@ -31,3 +31,15 @@ score = round(found / total * 100)  # retorna int: 86
 **Por quê:** O repositório remoto é `pedro-abritta/ATS-analyzer` no GitHub. Commit local não fica visível na nuvem sem o push.
 
 **Onde aplicar:** Em todo fluxo de commit, sem exceção.
+
+---
+
+## Pontos de Atenção
+
+### dates_analyzer.py - Contexto de datas multilinhas
+- **Problema**: Quando uma certificação ocupa 2 linhas no PDF, a função `_extract_context` pode pegar a segunda linha em vez da primeira (ex: "Automation v20.12.x Development" em vez de "Certificação internacional IBM")
+- **Causa**: A segunda linha tem mais de 10 caracteres, então a lógica não sobe para a linha anterior
+- **Correção futura**: Detectar se a linha atual parece ser continuação (não começa com "•" e a linha anterior sim, ou a linha anterior contém palavras-chave como "Certificação", "Curso", etc)
+- **Prioridade**: Baixa (não impacta score, apenas exibição)
+
+

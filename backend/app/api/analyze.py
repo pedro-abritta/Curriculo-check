@@ -1,6 +1,7 @@
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from app.services.contact_analyzer import analyze_contact
+from app.services.dates_analyzer import analyze_dates
 from app.services.parser import extract_text_from_docx, extract_text_from_pdf
 from app.services.section_toggle import ACTIVE_SECTIONS
 from app.services.skills_analyzer import analyze_skills
@@ -66,6 +67,7 @@ async def analyze(
     # Seções de análise (controladas por ACTIVE_SECTIONS)
     contact = analyze_contact(resume_text) if ACTIVE_SECTIONS["contact"] else _DISABLED
     skills = analyze_skills(resume_text, job_description) if ACTIVE_SECTIONS["skills"] else _DISABLED
+    dates = analyze_dates(resume_text) if ACTIVE_SECTIONS["dates"] else _DISABLED
 
     return {
         "status": "success",
@@ -75,4 +77,5 @@ async def analyze(
         "job_description_length": len(job_description),
         "contact": contact,
         "skills": skills,
+        "dates": dates,
     }
