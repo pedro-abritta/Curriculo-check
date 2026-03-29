@@ -49,9 +49,9 @@
 - Fase 2: Upload & Parsing ✅
 - Fase 3.1: Seção Contato ✅
 - Fase 3.2: Seção Skills ✅
-- Fase 3.3: Seção Datas
-- Fase 3.4: Seção Resumo Profissional
-- Fase 3.5: Seção Frases de Impacto
+- Fase 3.3: Seção Datas ✅
+- Fase 3.4: Seção Resumo Profissional ✅
+- Fase 3.5: Seção Frases de Impacto ✅
 - Fase 4: Dashboard
 - Fase 5: Banco de Dados (Supabase)
 - Fase 6: Autenticação
