@@ -36,12 +36,19 @@
 - app/services/ → lógica de negócio (analyzers)
 - app/models/ → schemas
 
+## Sistema de Toggle de Seções
+- Arquivo: `backend/app/services/section_toggle.py`
+- Dicionário `ACTIVE_SECTIONS` controla quais analyzers são executados
+- Seções desativadas (False) retornam `{"disabled": true}` no endpoint — sem chamadas à Claude API
+- Usar durante desenvolvimento para economizar tokens: ative apenas a seção em que está trabalhando
+- Estado atual: contact=False, skills=True, dates=False, summary=False, impact_phrases=False
+
 ## Roadmap
 - Fase 0: Stack ✅
 - Fase 1: Setup ✅
 - Fase 2: Upload & Parsing ✅
-- Fase 3.1: Seção Contato
-- Fase 3.2: Seção Skills ← atual
+- Fase 3.1: Seção Contato ✅
+- Fase 3.2: Seção Skills ✅
 - Fase 3.3: Seção Datas
 - Fase 3.4: Seção Resumo Profissional
 - Fase 3.5: Seção Frases de Impacto
