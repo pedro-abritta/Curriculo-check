@@ -1,5 +1,6 @@
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
+from app.services.contact_analyzer import analyze_contact
 from app.services.parser import extract_text_from_docx, extract_text_from_pdf
 
 router = APIRouter()
@@ -58,10 +59,13 @@ async def analyze(
             detail="Nenhum texto encontrado no arquivo. O documento pode estar vazio ou protegido.",
         )
 
+    contact = analyze_contact(resume_text)
+
     return {
         "status": "success",
         "resume_text": resume_text,
         "job_description": job_description,
         "resume_length": len(resume_text),
         "job_description_length": len(job_description),
+        "contact": contact,
     }
