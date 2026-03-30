@@ -52,7 +52,7 @@
 - Fase 3.3: Seção Datas ✅
 - Fase 3.4: Seção Resumo Profissional ✅
 - Fase 3.5: Seção Frases de Impacto ✅
-- Fase 4: Dashboard 
+- Fase 4: Dashboard ✅
 - Fase 5: Banco de Dados (Supabase)
 - Fase 6: Autenticação
 - Fase 7: Monetização
@@ -74,7 +74,8 @@
 ### Aprendizado
 - Após QUALQUER correção do usuário, registre o padrão em tasks/lessons.md
 - Escreva regras para si mesmo que previnam o mesmo erro
-- Revise lessons.md no início de cada sessão
+- **SEMPRE consulte tasks/lessons.md no início de cada tarefa para evitar repetir erros já documentados**
+- Ruthlessly iterate on these lessons until mistake rate drops
 
 ### Princípios
 - Simplicidade primeiro: faça cada mudança o mais simples possível
@@ -90,4 +91,72 @@
 ## Convenções Git
 - Usar conventional commits: feat:, fix:, docs:, refactor:
 - Manter mensagens com menos de 72 caracteres
-- Sempre rodar testes antes de commitar
+- Sempre rodar testes antes de commitar~
+
+## Lições Aprendidas
+**IMPORTANTE:** Sempre consulte tasks/lessons.md antes de iniciar qualquer tarefa. Este arquivo contém erros já cometidos e padrões aprendidos durante o desenvolvimento. Ignorá-lo resulta em retrabalho.
+
+## "Decisões de Arquitetura":
+
+
+### Análise Híbrida
+- Contato: regex para email/telefone/linkedin/portfolio, Claude API para nome/endereço/data nascimento
+- Skills: Claude API extrai skills, matching é regex com word boundary no texto completo
+- Datas: 100% regex, sem API
+- Resumo Profissional: regex para métricas, regex para skills (reutiliza lista do skills_analyzer), Claude API para verbos de impacto e contexto das métricas
+- Frases de Impacto: 100% Claude API
+
+### Score Geral
+- Pesos: Skills 30%, Resumo 25%, Datas 15%, Frases de Impacto 15%, Contato 15%
+- Calculado no frontend com Math.round()
+
+### Section Toggle
+- Arquivo backend/app/services/section_toggle.py controla quais seções rodam
+- Usado durante desenvolvimento para economizar tokens
+- Em produção: todas as seções = True
+- Mesmo com toggle False, skills_analyzer roda internamente para fornecer lista ao summary_analyzer
+
+### Skills
+- Match exato case-insensitive (sem sinônimos)
+- Busca em 2 etapas: lista extraída da IA + word boundary no texto completo
+- Separação required vs nice_to_have com peso 70/30
+- Divisão por zero tratada quando não há nice_to_have
+
+### Frases de Impacto
+- Score baseado em quantidade absoluta: 0=0%, 1=33%, 2=67%, 3+=100%
+- Status: >=3 green, 1-2 yellow, 0 red
+- Desduplicação entre Resumo e Experiência
+
+### Services (analyzers)
+- contact_analyzer.py — híbrido regex + Claude API
+- skills_analyzer.py — Claude API + regex matching
+- dates_analyzer.py — 100% regex
+- summary_analyzer.py — híbrido regex + Claude API
+- impact_analyzer.py — 100% Claude API
+- section_toggle.py — controle de seções ativas
+- parser.py — extração de texto de PDF/DOCX
+
+### Frontend
+- 3 telas: input → loading → result
+- Componentes de design baseados no padrão EvidenceCard
+- Cores: emerald (success), amber (warning), red (error)
+- RadialScore SVG para score geral
+- TabBar em pill style para navegação entre seções
+
+## "Estrutura do Backend":
+
+### Services (analyzers)
+- contact_analyzer.py — híbrido regex + Claude API
+- skills_analyzer.py — Claude API + regex matching
+- dates_analyzer.py — 100% regex
+- summary_analyzer.py — híbrido regex + Claude API
+- impact_analyzer.py — 100% Claude API
+- section_toggle.py — controle de seções ativas
+- parser.py — extração de texto de PDF/DOCX
+
+### Frontend
+- 3 telas: input → loading → result
+- Componentes de design baseados no padrão EvidenceCard
+- Cores: emerald (success), amber (warning), red (error)
+- RadialScore SVG para score geral
+- TabBar em pill style para navegação entre seções

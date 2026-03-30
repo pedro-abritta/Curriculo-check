@@ -411,7 +411,7 @@ function DatesTab({ dates }: { dates: any }) {
           softError
           key={i}
           status="error"
-          label={group.message}
+          label={`${group.message} (${(group.dates as string[]).length})`}
           message={group.suggestion}
         >
           <EvidenceBlock items={(group.dates as string[]).map(parseDateEntry)} />

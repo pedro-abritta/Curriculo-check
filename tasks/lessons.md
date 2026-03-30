@@ -42,4 +42,17 @@ score = round(found / total * 100)  # retorna int: 86
 - **Correção futura**: Detectar se a linha atual parece ser continuação (não começa com "•" e a linha anterior sim, ou a linha anterior contém palavras-chave como "Certificação", "Curso", etc)
 - **Prioridade**: Baixa (não impacta score, apenas exibição)
 
+## Ambiente
+1. PowerShell no Windows usa "curl" como alias de Invoke-WebRequest. Usar sempre "curl.exe" para testes
+2. Fonte Geist não existe no Next.js 14.2 — usar Inter do next/font/google
+3. Tailwind v3 e shadcn podem conflitar nas diretivas do globals.css — verificar versão antes de configurar
+4. VSCode pode não reconhecer imports do venv — resolver com Python: Select Interpreter apontando para o venv
+5. Cache do navegador pode mascarar mudanças no frontend — sempre forçar reload (Ctrl+Shift+R)
 
+## Backend
+6. Nunca truncar texto enviado aos analyzers — causava falha no matching de skills
+7. Texto extraído de PDF pode ter quebras de linha no meio de frases — limpar com regex antes de analisar
+8. Certificações em PDF podem ocupar múltiplas linhas, dificultando extração de contexto por linha
+
+## Pontos de Atenção
+9. dates_analyzer.py: contexto de certificação IBM multi-linha pega a segunda linha em vez da primeira (prioridade baixa, não impacta score)
