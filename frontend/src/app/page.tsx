@@ -427,24 +427,30 @@ function ImpactTab({ impact }: { impact: any }) {
   const phrases: any[] = impact.phrases ?? [];
   const deduplicated: any[] = impact.deduplicated ?? [];
 
+  const impactPhrases = phrases.filter((p: any) => p.is_impact);
+  const nonImpactPhrases = phrases.filter((p: any) => !p.is_impact);
+  const sorted = [...impactPhrases, ...nonImpactPhrases];
+
   return (
     <div className="space-y-3">
       <SectionProgressBar title="Frases de Impacto · Qualidade" score={impact.score ?? 0} />
 
-      {deduplicated.length > 0 && (
-        <div className="rounded-xl border bg-gray-100 border-gray-200 px-4 py-3">
+      {deduplicated.length > 0 && deduplicated.map((d: any, i: number) => (
+        <div key={i} className="rounded-xl border bg-gray-100 border-gray-200 px-4 py-3">
           <p className="text-sm font-medium text-gray-600">
-            ℹ️ {deduplicated.length}{" "}
-            {deduplicated.length === 1 ? "frase duplicada foi removida" : "frases duplicadas foram removidas"} da análise.
+            ℹ️ {deduplicated.length === 1 ? "1 frase duplicada foi removida" : `${deduplicated.length} frases duplicadas foram removidas`} da análise:
           </p>
+          {d.removed && (
+            <p className="mt-1 text-xs text-gray-400 italic">'{d.removed}'</p>
+          )}
         </div>
-      )}
+      ))}
 
       {phrases.length === 0 && (
         <p className="text-sm text-gray-400">Nenhuma frase encontrada no currículo.</p>
       )}
 
-      {phrases.map((phrase: any, i: number) => {
+      {sorted.map((phrase: any, i: number) => {
         const verb = phrase.verb || phrase.text.split(" ").slice(0, 3).join(" ");
         if (phrase.is_impact) {
           return (
@@ -463,10 +469,9 @@ function ImpactTab({ impact }: { impact: any }) {
             key={i}
             status="error"
             label={verb}
-            message="Frase sem métrica de resultado"
+            message={phrase.suggestion || "Frase sem métrica de resultado"}
           >
             <EvidenceBlock items={[phrase.text]} />
-            {phrase.suggestion && <SuggestionBlock text={phrase.suggestion} />}
           </EvidenceCard>
         );
       })}
