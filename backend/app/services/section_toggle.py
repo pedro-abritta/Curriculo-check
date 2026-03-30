@@ -3,9 +3,9 @@
 # Isso economiza tokens durante o desenvolvimento.
 
 ACTIVE_SECTIONS: dict[str, bool] = {
-    "contact": False,
-    "skills": False,
+    "contact": True,
+    "skills": True,
     "dates": True,
-    "summary": False,
-    "impact_phrases": False,
+    "summary": True,
+    "impact_phrases": True,
 }

@@ -41,6 +41,7 @@ interface EvidenceCardProps {
   message: string;
   children?: React.ReactNode;
   defaultOpen?: boolean;
+  softError?: boolean;
 }
 
 export function EvidenceCard({
@@ -49,9 +50,10 @@ export function EvidenceCard({
   message,
   children,
   defaultOpen = false,
+  softError = false,
 }: EvidenceCardProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
-  const cfg = STATUS_CFG[status];
+  const cfg = softError && status === "error" ? STATUS_CFG["warning"] : STATUS_CFG[status];
   const expandable = !!children;
 
   return (

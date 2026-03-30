@@ -176,14 +176,11 @@ JSON:"""
 # ---------------------------------------------------------------------------
 
 def _compute_status(impact: int, total: int) -> str:
-    if total == 0:
-        return "red"
-    no_impact = total - impact
-    if no_impact == 0:
+    if impact >= 3:
         return "green"
-    if no_impact > total / 2:
-        return "red"
-    return "yellow"
+    if impact >= 1:
+        return "yellow"
+    return "red"
 
 
 # ---------------------------------------------------------------------------
@@ -197,7 +194,14 @@ def analyze_impact(resume_text: str) -> dict:
     total_phrases = len(phrases)
     impact_phrases = sum(1 for p in phrases if p.get("is_impact") is True)
     no_impact_phrases = total_phrases - impact_phrases
-    score = round(impact_phrases / total_phrases * 100) if total_phrases > 0 else 0
+    if impact_phrases == 0:
+        score = 0
+    elif impact_phrases == 1:
+        score = 33
+    elif impact_phrases == 2:
+        score = 67
+    else:
+        score = 100
 
     return {
         "total_phrases": total_phrases,

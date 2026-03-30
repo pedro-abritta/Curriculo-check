@@ -327,6 +327,7 @@ function SummaryTab({ summary }: { summary: any }) {
       ) : (
         <>
           <EvidenceCard
+            softError
             status={passToStatus(pillars.metrics.status)}
             label="Métricas e Resultados"
             message={
@@ -339,6 +340,7 @@ function SummaryTab({ summary }: { summary: any }) {
           </EvidenceCard>
 
           <EvidenceCard
+            softError
             status={passToStatus(pillars.skills.status)}
             label="Skills da Vaga no Resumo"
             message={
@@ -351,6 +353,7 @@ function SummaryTab({ summary }: { summary: any }) {
           </EvidenceCard>
 
           <EvidenceCard
+            softError
             status={passToStatus(pillars.impact_verbs.status)}
             label="Verbos de Impacto"
             message={
@@ -405,6 +408,7 @@ function DatesTab({ dates }: { dates: any }) {
 
       {errorGroups.map((group: any, i: number) => (
         <EvidenceCard
+          softError
           key={i}
           status="error"
           label={group.message}
@@ -429,11 +433,19 @@ function ImpactTab({ impact }: { impact: any }) {
 
   const impactPhrases = phrases.filter((p: any) => p.is_impact);
   const nonImpactPhrases = phrases.filter((p: any) => !p.is_impact);
-  const sorted = [...impactPhrases, ...nonImpactPhrases];
 
   return (
     <div className="space-y-3">
-      <SectionProgressBar title="Frases de Impacto · Qualidade" score={impact.score ?? 0} />
+      <SectionProgressBar title="Frases de Impacto · Qualidade" score={impact.score ?? 0} status={impact.status} />
+
+      {impactPhrases.length >= 1 && nonImpactPhrases.length >= 1 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3 items-start">
+          <span className="text-base flex-shrink-0">💡</span>
+          <p className="text-xs text-amber-800">
+            Seu currículo possui boas frases de impacto com métricas quantitativas. Porém, ainda há frases que poderiam ser fortalecidas com números e resultados concretos. Veja abaixo as sugestões de melhoria.
+          </p>
+        </div>
+      )}
 
       {deduplicated.length > 0 && deduplicated.map((d: any, i: number) => (
         <div key={i} className="rounded-xl border bg-gray-100 border-gray-200 px-4 py-3">
@@ -450,22 +462,25 @@ function ImpactTab({ impact }: { impact: any }) {
         <p className="text-sm text-gray-400">Nenhuma frase encontrada no currículo.</p>
       )}
 
-      {sorted.map((phrase: any, i: number) => {
+      {impactPhrases.map((phrase: any, i: number) => {
         const verb = phrase.verb || phrase.text.split(" ").slice(0, 3).join(" ");
-        if (phrase.is_impact) {
-          return (
-            <EvidenceCard
-              key={i}
-              status="success"
-              label={verb}
-              message={[phrase.metric, phrase.context].filter(Boolean).join(" · ")}
-            >
-              <EvidenceBlock items={[phrase.text]} />
-            </EvidenceCard>
-          );
-        }
         return (
           <EvidenceCard
+            key={i}
+            status="success"
+            label={verb}
+            message={[phrase.metric, phrase.context].filter(Boolean).join(" · ")}
+          >
+            <EvidenceBlock items={[phrase.text]} />
+          </EvidenceCard>
+        );
+      })}
+
+      {nonImpactPhrases.map((phrase: any, i: number) => {
+        const verb = phrase.verb || phrase.text.split(" ").slice(0, 3).join(" ");
+        return (
+          <EvidenceCard
+            softError
             key={i}
             status="error"
             label={verb}
@@ -475,6 +490,7 @@ function ImpactTab({ impact }: { impact: any }) {
           </EvidenceCard>
         );
       })}
+
     </div>
   );
 }
@@ -500,6 +516,7 @@ function ContactTab({ contact }: { contact: any }) {
 
         return (
           <EvidenceCard
+            softError
             key={key}
             status={found ? "success" : "error"}
             label={label}
@@ -574,21 +591,6 @@ function ResultView({
         {/* Score + section pills */}
         <div className="flex flex-col items-center gap-4 bg-white rounded-2xl border border-gray-200 shadow-sm px-6 py-8">
           <RadialScore score={overallScore} />
-          <div className="flex flex-wrap gap-2 justify-center">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-gray-50 border border-gray-200 text-gray-700 hover:bg-gray-100 transition-colors"
-              >
-                <span
-                  className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: dotColor(sectionStatuses[tab.id]) }}
-                />
-                {tab.title}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* TabBar */}
@@ -625,7 +627,7 @@ function ResultView({
 
         {/* Footer */}
         <p className="text-center text-xs text-gray-400 pb-4">
-          Auditado em {analysisTime} · ATS Analyzer · Resultados gerados por IA
+          · Análise ATS · Resultados gerados por IA
         </p>
 
       </div>
