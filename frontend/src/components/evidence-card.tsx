@@ -98,16 +98,35 @@ export function EvidenceCard({
   );
 }
 
+type EvidenceItem = string | { value: string; context: string };
+
 // Dark evidence block used inside expandable cards
-export function EvidenceBlock({ items }: { items: string[] }) {
+export function EvidenceBlock({ items }: { items: EvidenceItem[] }) {
   if (!items.length) return null;
   return (
     <div className="bg-gray-950 rounded-lg mx-3 my-3 px-4 py-3 space-y-1">
-      {items.map((item, i) => (
-        <p key={i} className="text-emerald-300 font-mono text-sm">
-          → {item}
-        </p>
-      ))}
+      {items.map((item, i) => {
+        if (typeof item === "string") {
+          return (
+            <p key={i} className="font-mono text-sm">
+              <span className="text-emerald-500">→ </span>
+              <span className="text-emerald-300 font-bold">{item}</span>
+            </p>
+          );
+        }
+        return (
+          <p key={i} className="font-mono text-sm">
+            <span className="text-emerald-500">→ </span>
+            <span className="text-emerald-300 font-bold">{item.value}</span>
+            {item.context && (
+              <>
+                <span className="text-gray-400"> — </span>
+                <span className="text-gray-400 font-normal">{item.context}</span>
+              </>
+            )}
+          </p>
+        );
+      })}
     </div>
   );
 }

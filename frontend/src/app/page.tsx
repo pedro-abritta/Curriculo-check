@@ -369,6 +369,12 @@ function SummaryTab({ summary }: { summary: any }) {
 
 // ─── Tab: Datas ───────────────────────────────────────────────────────────────
 
+function parseDateEntry(entry: string): { value: string; context: string } | string {
+  const match = entry.match(/^(.+?)\s*\(em:\s*(.+)\)$/);
+  if (match) return { value: match[1].trim(), context: match[2].trim() };
+  return entry;
+}
+
 function DatesTab({ dates }: { dates: any }) {
   if (!dates || dates.disabled) {
     return <p className="text-sm text-gray-400 py-4">Seção desativada.</p>;
@@ -376,6 +382,8 @@ function DatesTab({ dates }: { dates: any }) {
 
   const datesList: any[] = dates.dates ?? [];
   const errorGroups: any[] = dates.error_groups ?? [];
+
+  const validDates = datesList.filter((d: any) => d.status === "correct").map((d: any) => d.original as string);
 
   return (
     <div className="space-y-3">
@@ -385,45 +393,25 @@ function DatesTab({ dates }: { dates: any }) {
         <p className="text-sm text-gray-400">Nenhuma data encontrada no currículo.</p>
       )}
 
-      {datesList.map((d: any, i: number) => {
-        const correct = d.status === "correct";
-        return (
-          <EvidenceCard
-            key={i}
-            status={correct ? "success" : "error"}
-            label={d.original}
-            message={correct ? "Data válida" : d.suggestion ? `Sugestão: ${d.suggestion}` : "Formato inválido"}
-          />
-        );
-      })}
+      {validDates.length > 0 && (
+        <EvidenceCard
+          status="success"
+          label={`Datas válidas (${validDates.length})`}
+          message="Formato mês/ano identificado corretamente"
+        >
+          <EvidenceBlock items={validDates} />
+        </EvidenceCard>
+      )}
 
       {errorGroups.map((group: any, i: number) => (
-        <div
+        <EvidenceCard
           key={i}
-          className="rounded-xl border bg-amber-50 border-amber-200 overflow-hidden"
+          status="error"
+          label={group.message}
+          message={group.suggestion}
         >
-          <div className="flex items-start gap-3 px-4 py-3">
-            <span className="text-lg flex-shrink-0">💡</span>
-            <div className="flex-1">
-              <p className="font-semibold text-gray-900 text-sm">{group.message}</p>
-              <p className="text-xs text-amber-700 mt-0.5">
-                Sugestão de formato: <span className="font-mono font-medium">{group.suggestion}</span>
-              </p>
-              {Array.isArray(group.dates) && group.dates.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {group.dates.map((d: string, j: number) => (
-                    <span
-                      key={j}
-                      className="px-2 py-0.5 text-xs rounded-full bg-amber-100 text-amber-800 border border-amber-200 font-mono font-medium"
-                    >
-                      {d}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+          <EvidenceBlock items={(group.dates as string[]).map(parseDateEntry)} />
+        </EvidenceCard>
       ))}
     </div>
   );

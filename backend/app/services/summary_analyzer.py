@@ -81,10 +81,6 @@ _METRIC_RE = re.compile(
 )
 
 
-def _extract_metrics(summary_text: str) -> list[str]:
-    return _METRIC_RE.findall(summary_text)
-
-
 # ---------------------------------------------------------------------------
 # Pilar 2 — Skills da vaga no resumo (regex, sem API)
 # ---------------------------------------------------------------------------
@@ -92,10 +88,7 @@ def _extract_metrics(summary_text: str) -> list[str]:
 def _match_skills_in_summary(
     summary_text: str, job_skills: list[str]
 ) -> tuple[list[str], list[str]]:
-    """
-    Busca cada skill da vaga no parágrafo de resumo como palavra inteira,
-    case-insensitive. Mesma lógica do _match_skills do skills_analyzer.
-    """
+    """Retorna (found_values, missing_values) — apenas strings, sem contexto ainda."""
     text_lower = summary_text.lower()
     found: list[str] = []
     missing: list[str] = []
@@ -109,23 +102,44 @@ def _match_skills_in_summary(
 
 
 # ---------------------------------------------------------------------------
-# Pilar 3 — Verbos de impacto (Claude API)
+# Pilares 1+2+3 — Única chamada Claude API
 # ---------------------------------------------------------------------------
 
-def _extract_impact_verbs(summary_text: str) -> list[str]:
-    """Chama a Claude API para identificar verbos de ação/impacto no resumo."""
+def _analyze_with_claude(
+    summary_text: str,
+    metrics: list[str],
+    skills_found: list[str],
+) -> dict:
+    """
+    Uma única chamada à Claude API que retorna:
+    - impact_verbs: verbos de ação identificados no resumo
+    - metrics_context: descrição curta (≤5 palavras) para cada métrica
+    - skills_context: descrição curta (≤5 palavras) para cada skill encontrada
+    - verbs_context: descrição curta (≤5 palavras) para cada verbo de impacto
+    """
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
-    prompt = f"""Analise o resumo profissional abaixo e identifique os verbos de ação e impacto.
+    prompt = f"""Analise o resumo profissional abaixo e execute as 4 tarefas.
 
-Verbos de impacto demonstram protagonismo e resultado. Exemplos:
+TAREFA 1 — Identifique os verbos de ação e impacto presentes no resumo.
 - ACEITOS: "liderei", "desenvolvi", "reduzi", "transformei", "implementei", "automatizei", "otimizei", "alcancei", "viabilizei", "aumentei", "gerenciei", "criando", "eliminando", "entregando", "conectando", "construí", "estruturei"
 - REJEITADOS (genéricos): "tenho", "sou", "possuo", "trabalho", "faço", "fui", "estou", "busco", "gosto", "atuo", "sendo"
 
-Responda APENAS com JSON puro, sem markdown, sem explicação:
-{{"impact_verbs": ["verbo1", "verbo2", ...]}}
+TAREFA 2 — Para cada métrica da lista abaixo, gere uma descrição de até 5 palavras em português explicando o que ela representa no resumo. Não repita a métrica na descrição.
+Métricas: {json.dumps(metrics, ensure_ascii=False)}
 
-Se não houver nenhum verbo de impacto, retorne: {{"impact_verbs": []}}
+TAREFA 3 — Para cada skill da lista abaixo, gere uma descrição de até 5 palavras em português explicando como ela aparece no resumo. Não repita a skill na descrição.
+Skills: {json.dumps(skills_found, ensure_ascii=False)}
+
+TAREFA 4 — Para cada verbo de impacto identificado na TAREFA 1, gere uma descrição de até 5 palavras em português explicando o que ele representa no resumo.
+
+Responda APENAS com JSON puro, sem markdown, sem explicação:
+{{
+  "impact_verbs": ["verbo1", "verbo2"],
+  "metrics_context": {{"metrica1": "descricao curta", "metrica2": "descricao curta"}},
+  "skills_context": {{"skill1": "descricao curta", "skill2": "descricao curta"}},
+  "verbs_context": {{"verbo1": "descricao curta", "verbo2": "descricao curta"}}
+}}
 
 RESUMO:
 {summary_text}
@@ -134,7 +148,7 @@ JSON:"""
 
     message = client.messages.create(
         model="claude-sonnet-4-20250514",
-        max_tokens=256,
+        max_tokens=512,
         temperature=0,
         messages=[{"role": "user", "content": prompt}],
     )
@@ -142,8 +156,7 @@ JSON:"""
     raw = message.content[0].text.strip()
     raw = re.sub(r'^```(?:json)?\s*', '', raw)
     raw = re.sub(r'\s*```$', '', raw)
-    data = json.loads(raw)
-    return data.get("impact_verbs", [])
+    return json.loads(raw)
 
 
 # ---------------------------------------------------------------------------
@@ -181,16 +194,24 @@ def analyze_summary(resume_text: str, job_skills: list[str]) -> dict:
             "status": "red",
         }
 
-    # Pilar 1 — Métricas
-    metrics_found = _extract_metrics(summary_text)
+    # Pilares 1 e 2 — detecção via regex (sem API)
+    metric_values = _METRIC_RE.findall(summary_text)
+    skills_found_values, _skills_missing = _match_skills_in_summary(summary_text, job_skills)
+
+    # Única chamada Claude API — verbos + contextos
+    claude = _analyze_with_claude(summary_text, metric_values, skills_found_values)
+
+    metrics_context: dict = claude.get("metrics_context", {})
+    skills_context: dict = claude.get("skills_context", {})
+    verbs_context: dict = claude.get("verbs_context", {})
+    verb_list: list[str] = claude.get("impact_verbs", [])
+
+    metrics_found = [{"value": v, "context": metrics_context.get(v, "")} for v in metric_values]
+    skills_found = [{"value": s, "context": skills_context.get(s, "")} for s in skills_found_values]
+    impact_verbs = [{"value": v, "context": verbs_context.get(v, "")} for v in verb_list]
+
     metrics_status = _pillar_status(len(metrics_found))
-
-    # Pilar 2 — Skills
-    skills_found, _skills_missing = _match_skills_in_summary(summary_text, job_skills)
     skills_status = _pillar_status(len(skills_found))
-
-    # Pilar 3 — Verbos de impacto
-    impact_verbs = _extract_impact_verbs(summary_text)
     verbs_status = _pillar_status(len(impact_verbs))
 
     pillars_passed = sum(
