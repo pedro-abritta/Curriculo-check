@@ -36,6 +36,32 @@
 - app/services/ → lógica de negócio (analyzers)
 - app/models/ → schemas
 
+## Supabase
+- URL: SUPABASE_URL (env backend) / NEXT_PUBLIC_SUPABASE_URL (env frontend)
+- Chave pública: SUPABASE_PUBLIC_KEY (env backend) / NEXT_PUBLIC_SUPABASE_ANON_KEY (env frontend)
+- Client backend: `backend/app/services/database.py`
+- Client frontend: `frontend/src/lib/supabase.ts`
+- Tabelas: `users` (id uuid PK, email, area text, total_tokens_used int, created_at, updated_at), `analyses` (id uuid PK, user_id uuid FK, job_area, tokens_used int, created_at)
+- Campo "score" removido da tabela analyses (irrelevante para persistência)
+- Funções DB: get_or_create_user, update_user_area, add_tokens, save_analysis
+- Classificação de área: `backend/app/services/area_classifier.py`
+- Tokens reais contabilizados de todas as chamadas Claude API (input + output tokens)
+- Cada analyzer retorna tokens_used no seu resultado
+- Backend usa service_role key (bypassa RLS); Frontend usa anon key (apenas para auth)
+
+## Autenticação
+- Método: Email + senha via Supabase Auth
+- Backend: `backend/app/api/auth.py` → POST /api/auth/register, /login, /logout
+- Middleware: `backend/app/middleware/auth_middleware.py` → dependency `require_auth`
+- Endpoint protegido: POST /api/analyze (Authorization: Bearer <token>)
+- Endpoints públicos: /api/auth/register, /api/auth/login, /health
+- Frontend: `AuthForm.tsx` chama endpoints do backend; token armazenado no localStorage (chave: "ats_token")
+- Fluxo: auth → input → loading → result; token 401 redireciona para auth
+- Frontend tem 4 estados: auth → input → loading → result
+- Sessão persiste no navegador (Supabase client gerencia refresh token)
+- Login com Google planejado para futuro (depende de Google Cloud Console)
+- IMPORTANTE: Desativar confirmação de email no Supabase Dashboard para dev (Authentication → Settings)
+
 ## Sistema de Toggle de Seções
 - Arquivo: `backend/app/services/section_toggle.py`
 - Dicionário `ACTIVE_SECTIONS` controla quais analyzers são executados
@@ -53,8 +79,8 @@
 - Fase 3.4: Seção Resumo Profissional ✅
 - Fase 3.5: Seção Frases de Impacto ✅
 - Fase 4: Dashboard ✅
-- Fase 5: Banco de Dados (Supabase)
-- Fase 6: Autenticação
+- Fase 5: Banco de Dados (Supabase) ✅
+- Fase 6: Autenticação & Cadastro ✅
 - Fase 7: Monetização
 - Fase 8: Polish
 - Fase 9: Deploy
@@ -127,6 +153,24 @@
 - Status: >=3 green, 1-2 yellow, 0 red
 - Desduplicação entre Resumo e Experiência
 
+### Autenticação
+- Supabase Auth com email/senha
+- JWT token enviado no header Authorization: Bearer <token>
+- Endpoints protegidos: /api/analyze
+- Endpoints públicos: /api/auth/register, /api/auth/login, /health
+- Sessão persiste no navegador (Supabase client gerencia refresh token)
+- Frontend tem 4 estados: auth → input → loading → result
+- Login com Google planejado para futuro (depende de Google Cloud Console)
+
+### Banco de Dados (Supabase)
+- Tabela users: id, email, area, total_tokens_used, created_at, updated_at
+- Tabela analyses: id, user_id, job_area, tokens_used, created_at
+- Campo "score" removido da tabela analyses (irrelevante para persistência)
+- Tokens reais contabilizados de todas as chamadas Claude API (input + output tokens)
+- Cada analyzer retorna tokens_used no seu resultado
+- Backend usa service_role key (bypassa RLS)
+- Frontend usa anon key (apenas para auth)
+
 ### Services (analyzers)
 - contact_analyzer.py — híbrido regex + Claude API
 - skills_analyzer.py — Claude API + regex matching
@@ -153,6 +197,11 @@
 - impact_analyzer.py — 100% Claude API
 - section_toggle.py — controle de seções ativas
 - parser.py — extração de texto de PDF/DOCX
+- database.py — funções de persistência no Supabase
+
+### Auth & Middleware
+- app/api/auth.py — endpoints de register e login
+- app/middleware/auth_middleware.py — verificação JWT
 
 ### Frontend
 - 3 telas: input → loading → result

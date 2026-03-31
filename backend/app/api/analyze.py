@@ -1,6 +1,9 @@
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
+from app.middleware.auth_middleware import require_auth
+from app.services.area_classifier import classify_areas
 from app.services.contact_analyzer import analyze_contact
+from app.services.database import add_tokens, get_or_create_user, save_analysis, update_user_area
 from app.services.dates_analyzer import analyze_dates
 from app.services.impact_analyzer import analyze_impact
 from app.services.parser import extract_text_from_docx, extract_text_from_pdf
@@ -20,10 +23,19 @@ ALLOWED_CONTENT_TYPES = {
 _DISABLED = {"disabled": True}
 
 
+def _section_score(section: dict) -> int:
+    if not section or section.get("disabled"):
+        return 0
+    if "overall" in section:
+        return section["overall"].get("score", 0)
+    return section.get("score", 0)
+
+
 @router.post("/analyze")
 async def analyze(
     file: UploadFile = File(...),
     job_description: str = Form(...),
+    current_user=Depends(require_auth),
 ):
     # Validar tipo do arquivo
     if file.content_type not in ALLOWED_CONTENT_TYPES:
@@ -84,12 +96,34 @@ async def analyze(
     summary = analyze_summary(resume_text, job_skills) if ACTIVE_SECTIONS["summary"] else _DISABLED
     impact = analyze_impact(resume_text) if ACTIVE_SECTIONS["impact_phrases"] else _DISABLED
 
+    # Classificação de áreas (usuário e vaga)
+    areas = classify_areas(resume_text, job_description)
+
+    # Total de tokens consumidos em todas as chamadas Claude API
+    total_tokens = sum([
+        contact.get("tokens_used", 0),
+        skills.get("tokens_used", 0),
+        dates.get("tokens_used", 0),
+        summary.get("tokens_used", 0),
+        impact.get("tokens_used", 0),
+        areas.get("tokens_used", 0),
+    ])
+
+    # Persistência no banco
+    user = get_or_create_user(current_user.email)
+    update_user_area(user["id"], areas["user_area"])
+    save_analysis(user["id"], areas["job_area"], total_tokens)
+    add_tokens(user["id"], total_tokens)
+
     return {
         "status": "success",
         "resume_text": resume_text,
         "job_description": job_description,
         "resume_length": len(resume_text),
         "job_description_length": len(job_description),
+        "user_area": areas["user_area"],
+        "job_area": areas["job_area"],
+        "total_tokens_used": total_tokens,
         "contact": contact,
         "skills": skills,
         "dates": dates,

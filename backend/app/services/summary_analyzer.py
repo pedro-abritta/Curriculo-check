@@ -152,11 +152,12 @@ JSON:"""
         temperature=0,
         messages=[{"role": "user", "content": prompt}],
     )
+    tokens_used = message.usage.input_tokens + message.usage.output_tokens
 
     raw = message.content[0].text.strip()
     raw = re.sub(r'^```(?:json)?\s*', '', raw)
     raw = re.sub(r'\s*```$', '', raw)
-    return json.loads(raw)
+    return json.loads(raw), tokens_used
 
 
 # ---------------------------------------------------------------------------
@@ -192,6 +193,7 @@ def analyze_summary(resume_text: str, job_skills: list[str]) -> dict:
             "total_pillars": 3,
             "score": 0,
             "status": "red",
+            "tokens_used": 0,
         }
 
     # Pilares 1 e 2 — detecção via regex (sem API)
@@ -199,7 +201,7 @@ def analyze_summary(resume_text: str, job_skills: list[str]) -> dict:
     skills_found_values, _skills_missing = _match_skills_in_summary(summary_text, job_skills)
 
     # Única chamada Claude API — verbos + contextos
-    claude = _analyze_with_claude(summary_text, metric_values, skills_found_values)
+    claude, tokens_used = _analyze_with_claude(summary_text, metric_values, skills_found_values)
 
     metrics_context: dict = claude.get("metrics_context", {})
     skills_context: dict = claude.get("skills_context", {})
@@ -242,4 +244,5 @@ def analyze_summary(resume_text: str, job_skills: list[str]) -> dict:
         "total_pillars": 3,
         "score": score,
         "status": _compute_status(pillars_passed),
+        "tokens_used": tokens_used,
     }

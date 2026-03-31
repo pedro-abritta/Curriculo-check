@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 load_dotenv()
 
 from app.api.analyze import router as analyze_router
+from app.api.auth import router as auth_router
 
 app = FastAPI(title="ATS Backend")
 
@@ -16,6 +17,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router, prefix="/api/auth")
 app.include_router(analyze_router, prefix="/api")
 
 

@@ -112,12 +112,13 @@ JSON de resposta:"""
         temperature=0,
         messages=[{"role": "user", "content": prompt}],
     )
+    tokens_used = message.usage.input_tokens + message.usage.output_tokens
 
     raw = message.content[0].text.strip()
     # Remover blocos de markdown caso Claude insista em adicioná-los
     raw = re.sub(r"^```(?:json)?\s*", "", raw)
     raw = re.sub(r"\s*```$", "", raw)
-    return json.loads(raw)
+    return json.loads(raw), tokens_used
 
 
 # ---------------------------------------------------------------------------
@@ -150,7 +151,7 @@ def analyze_contact(resume_text: str) -> dict:
     portfolio_urls = _extract_portfolio_urls(resume_text)
 
     # --- Claude API ---
-    ambiguous = _extract_ambiguous_fields(resume_text)
+    ambiguous, tokens_used = _extract_ambiguous_fields(resume_text)
     nome = ambiguous.get("nome") or None
     endereco = ambiguous.get("endereco") or None
     data_nascimento = ambiguous.get("data_nascimento") or None
@@ -176,4 +177,5 @@ def analyze_contact(resume_text: str) -> dict:
         "found_items": found_items,
         "score": score,
         "status": status,
+        "tokens_used": tokens_used,
     }

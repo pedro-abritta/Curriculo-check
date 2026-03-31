@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { X, Upload } from "lucide-react";
+import { X, Upload, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,10 +13,11 @@ import {
   SuggestionBlock,
   type EvidenceStatus,
 } from "@/components/evidence-card";
+import { AuthForm } from "@/components/AuthForm";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type AppState = "input" | "loading" | "result";
+type AppState = "auth" | "input" | "loading" | "result";
 type BackendStatus = "green" | "yellow" | "red";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -81,7 +82,13 @@ function isMissingSkill(skill: string, missingList: string[]): boolean {
 
 // ─── Input View ───────────────────────────────────────────────────────────────
 
-function InputView({ onSubmit }: { onSubmit: (file: File, jobText: string) => void }) {
+function InputView({
+  onSubmit,
+  onLogout,
+}: {
+  onSubmit: (file: File, jobText: string) => void;
+  onLogout: () => void;
+}) {
   const [file, setFile] = useState<File | null>(null);
   const [jobText, setJobText] = useState("");
   const [isDragging, setIsDragging] = useState(false);
@@ -113,9 +120,15 @@ function InputView({ onSubmit }: { onSubmit: (file: File, jobText: string) => vo
   return (
     <main className="min-h-screen flex items-center justify-center bg-white px-4 py-12">
       <div className="w-full max-w-2xl flex flex-col gap-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-gray-900">ATS Analyzer</h1>
-          <p className="mt-2 text-gray-500 text-lg">Análise inteligente de currículos</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-4xl font-bold tracking-tight text-gray-900">ATS Analyzer</h1>
+            <p className="mt-2 text-gray-500 text-lg">Análise inteligente de currículos</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={onLogout} className="mt-2 gap-1.5">
+            <LogOut className="h-3.5 w-3.5" />
+            Sair
+          </Button>
         </div>
 
         <Card>
@@ -544,10 +557,12 @@ function ResultView({
   result,
   analysisTime,
   onReset,
+  onLogout,
 }: {
   result: any;
   analysisTime: string;
   onReset: () => void;
+  onLogout: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<TabId>("skills");
 
@@ -579,9 +594,15 @@ function ResultView({
 
         {/* Top bar */}
         <div className="flex items-start justify-between">
-          <Button variant="outline" size="sm" onClick={onReset}>
-            ← Nova Análise
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={onReset}>
+              ← Nova Análise
+            </Button>
+            <Button variant="outline" size="sm" onClick={onLogout} className="gap-1.5">
+              <LogOut className="h-3.5 w-3.5" />
+              Sair
+            </Button>
+          </div>
           <div className="text-right">
             <p className="text-xs tracking-widest uppercase text-gray-400 font-medium">Análise ATS</p>
             <h1 className="text-lg font-bold text-gray-900">Health Check do Currículo</h1>
@@ -638,9 +659,33 @@ function ResultView({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function Home() {
-  const [appState, setAppState] = useState<AppState>("input");
+  const [appState, setAppState] = useState<AppState>("auth");
+  const [token, setToken] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
   const [analysisTime, setAnalysisTime] = useState("");
+
+  // Restaurar sessão do localStorage ao montar
+  useEffect(() => {
+    const stored = localStorage.getItem("ats_token");
+    if (stored) {
+      setToken(stored);
+      setAppState("input");
+    }
+  }, []);
+
+  function handleAuth(newToken: string) {
+    localStorage.setItem("ats_token", newToken);
+    setToken(newToken);
+    setAppState("input");
+  }
+
+  function handleLogout() {
+    localStorage.removeItem("ats_token");
+    setToken(null);
+    setResult(null);
+    setAnalysisTime("");
+    setAppState("auth");
+  }
 
   async function handleSubmit(file: File, jobText: string) {
     setAppState("loading");
@@ -651,9 +696,11 @@ export default function Home() {
 
       const res = await fetch("http://localhost:8000/api/analyze", {
         method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 
+      if (res.status === 401) { handleLogout(); return; }
       if (!res.ok) throw new Error("Erro na análise");
 
       const data = await res.json();
@@ -671,8 +718,9 @@ export default function Home() {
     setAppState("input");
   }
 
+  if (appState === "auth") return <AuthForm onAuth={handleAuth} />;
   if (appState === "loading") return <LoadingView />;
   if (appState === "result" && result)
-    return <ResultView result={result} analysisTime={analysisTime} onReset={handleReset} />;
-  return <InputView onSubmit={handleSubmit} />;
+    return <ResultView result={result} analysisTime={analysisTime} onReset={handleReset} onLogout={handleLogout} />;
+  return <InputView onSubmit={handleSubmit} onLogout={handleLogout} />;
 }

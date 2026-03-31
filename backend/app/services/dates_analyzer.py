@@ -272,4 +272,5 @@ def analyze_dates(resume_text: str) -> dict:
         "score": score,
         "status": _compute_status(correct, total),
         "error_groups": _build_error_groups(all_dates, resume_text),
+        "tokens_used": 0,
     }

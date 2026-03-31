@@ -56,3 +56,10 @@ score = round(found / total * 100)  # retorna int: 86
 
 ## Pontos de Atenção
 9. dates_analyzer.py: contexto de certificação IBM multi-linha pega a segunda linha em vez da primeira (prioridade baixa, não impacta score)
+
+## Autenticação & Supabase
+10. Variáveis de ambiente devem ter nomes IDÊNTICOS entre .env e código — SUPABASE_KEY vs SUPABASE_PUBLIC_KEY causou KeyError
+11. Nomes de colunas no código devem bater EXATAMENTE com o schema do Supabase — "tokens" vs "total_tokens_used" causou APIError
+12. Ao criar usuário no Supabase Auth, se o insert na tabela users falhar, o usuário fica "órfão" no Auth — o login deve chamar get_or_create_user para recuperar
+13. Desabilitar "Confirm sign up" no Supabase durante desenvolvimento para evitar bloqueio por confirmação de email
+14. service_role key vai no backend (.env), anon key vai no frontend (.env.local) — nunca expor service_role no frontend

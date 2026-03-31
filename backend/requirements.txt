@@ -5,3 +5,5 @@ pdfplumber
 python-docx
 anthropic
 python-dotenv
+supabase
+PyJWT

@@ -80,12 +80,13 @@ JSON:"""
         temperature=0,
         messages=[{"role": "user", "content": prompt}],
     )
+    tokens_used = message.usage.input_tokens + message.usage.output_tokens
 
     raw = message.content[0].text.strip()
     # Remover blocos de markdown defensivamente
     raw = re.sub(r"^```(?:json)?\s*", "", raw)
     raw = re.sub(r"\s*```$", "", raw)
-    return json.loads(raw)
+    return json.loads(raw), tokens_used
 
 
 # ---------------------------------------------------------------------------
@@ -152,7 +153,7 @@ def _status(score: int) -> str:
 # ---------------------------------------------------------------------------
 
 def analyze_skills(resume_text: str, job_description: str) -> dict:
-    extracted = _extract_skills_via_claude(resume_text, job_description)
+    extracted, tokens_used = _extract_skills_via_claude(resume_text, job_description)
 
     job_required: list[str] = extracted.get("job_skills", {}).get("required", [])
     job_nice: list[str] = extracted.get("job_skills", {}).get("nice_to_have", [])
@@ -197,4 +198,5 @@ def analyze_skills(resume_text: str, job_description: str) -> dict:
             "score": overall_score,
             "status": _status(overall_score),
         },
+        "tokens_used": tokens_used,
     }

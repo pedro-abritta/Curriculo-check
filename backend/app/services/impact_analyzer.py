@@ -163,12 +163,13 @@ JSON:"""
         temperature=0,
         messages=[{"role": "user", "content": prompt}],
     )
+    tokens_used = message.usage.input_tokens + message.usage.output_tokens
 
     raw = message.content[0].text.strip()
     raw = re.sub(r'^```(?:json)?\s*', '', raw)
     raw = re.sub(r'\s*```$', '', raw)
     data = json.loads(raw)
-    return data.get("phrases", []), data.get("deduplicated", [])
+    return data.get("phrases", []), data.get("deduplicated", []), tokens_used
 
 
 # ---------------------------------------------------------------------------
@@ -189,7 +190,7 @@ def _compute_status(impact: int, total: int) -> str:
 
 def analyze_impact(resume_text: str) -> dict:
     action_text = _extract_action_text(resume_text)
-    phrases, deduplicated = _classify_phrases_via_claude(action_text)
+    phrases, deduplicated, tokens_used = _classify_phrases_via_claude(action_text)
 
     total_phrases = len(phrases)
     impact_phrases = sum(1 for p in phrases if p.get("is_impact") is True)
@@ -211,4 +212,5 @@ def analyze_impact(resume_text: str) -> dict:
         "status": _compute_status(impact_phrases, total_phrases),
         "phrases": phrases,
         "deduplicated": deduplicated,
+        "tokens_used": tokens_used,
     }
