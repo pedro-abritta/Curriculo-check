@@ -69,6 +69,15 @@
 - Usar durante desenvolvimento para economizar tokens: ative apenas a seção em que está trabalhando
 - Estado atual: contact=False, skills=True, dates=False, summary=False, impact_phrases=False
 
+## Sistema de Toggle de Paywall
+- Arquivo: `backend/app/services/paywall_toggle.py`
+- `PAYWALL_ENABLED = False` → resultado completo retornado + `paywall_active: false` no JSON (fluxo atual preservado)
+- `PAYWALL_ENABLED = True` → salva resultado no banco, retorna apenas preview (score+status por seção); frontend mostra tela de paywall
+- O campo `paywall_active` (bool) é sempre retornado no JSON — frontend usa para decidir qual tela renderizar
+- Preview contém: `overall_score`, `user_area`, `job_area`, `sections` (cada seção com score e status apenas)
+- Resultado completo salvo em `analyses.result_json` (JSONB); desbloqueado via `analyses.paid = true`
+- Endpoint de consulta: `GET /api/analysis/{analysis_id}` (autenticado, verifica ownership)
+
 ## Roadmap
 - Fase 0: Stack ✅
 - Fase 1: Setup ✅
@@ -81,7 +90,7 @@
 - Fase 4: Dashboard ✅
 - Fase 5: Banco de Dados (Supabase) ✅
 - Fase 6: Autenticação & Cadastro ✅
-- Fase 7: Monetização
+- Fase 7: Monetização ✅
 - Fase 8: Polish
 - Fase 9: Deploy
 
@@ -153,6 +162,20 @@
 - Status: >=3 green, 1-2 yellow, 0 red
 - Desduplicação entre Resumo e Experiência
 
+### Monetização
+- Mercado Pago Checkout Pro (PIX apenas)
+- Valor por análise: R$ 9,90
+- Fluxo: análise roda grátis → resultado fica no banco (result_json) → paywall bloqueia visualização → pagamento via PIX → resultado liberado
+- Paywall toggle: backend/app/services/paywall_toggle.py (PAYWALL_ENABLED = True/False)
+  - False: resultado completo retornado sem pagamento (modo teste/avaliação)
+  - True: retorna apenas preview, resultado completo só após pagamento
+- Credenciais de produção no backend (.env): PROD_MP_ACCESS_TOKEN
+- Credenciais de teste NÃO suportam PIX
+- Tabela analyses: campos paid (BOOLEAN) e result_json (JSONB) para controle
+- Webhook /api/payment/webhook recebe confirmação do Mercado Pago e marca análise como paga
+- Página /payment/success faz polling no status até confirmar pagamento
+- Resultado pago é salvo no localStorage (ats_pending_result) e lido ao carregar page.tsx
+
 ### Autenticação
 - Supabase Auth com email/senha
 - JWT token enviado no header Authorization: Bearer <token>
@@ -196,6 +219,7 @@
 - summary_analyzer.py — híbrido regex + Claude API
 - impact_analyzer.py — 100% Claude API
 - section_toggle.py — controle de seções ativas
+- paywall_toggle.py — toggle de ativação do paywall
 - parser.py — extração de texto de PDF/DOCX
 - database.py — funções de persistência no Supabase
 
@@ -203,9 +227,15 @@
 - app/api/auth.py — endpoints de register e login
 - app/middleware/auth_middleware.py — verificação JWT
 
+### Payment
+- app/api/payment.py — criação de preferência MP, webhook, status de pagamento
+
 ### Frontend
 - 3 telas: input → loading → result
 - Componentes de design baseados no padrão EvidenceCard
 - Cores: emerald (success), amber (warning), red (error)
 - RadialScore SVG para score geral
 - TabBar em pill style para navegação entre seções
+- src/app/payment/success/page.tsx — tela de confirmação pós-pagamento com polling
+- src/app/payment/failure/page.tsx — tela de falha no pagamento
+- Componente PaywallView — tela com blur, cadeado e CTA de pagamento

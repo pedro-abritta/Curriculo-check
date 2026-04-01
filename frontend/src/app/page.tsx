@@ -541,6 +541,134 @@ function ContactTab({ contact }: { contact: any }) {
   );
 }
 
+// ─── Paywall View ────────────────────────────────────────────────────────────
+
+function PaywallView({
+  preview,
+  analysisId,
+  token,
+  onReset,
+  onLogout,
+}: {
+  preview: any;
+  analysisId: string;
+  token: string | null;
+  onReset: () => void;
+  onLogout: () => void;
+}) {
+  const [paying, setPaying] = useState(false);
+  const overallScore: number = preview.overall_score ?? 0;
+  const sections = preview.sections ?? {};
+
+  async function handleUnlock() {
+    if (paying) return;
+    setPaying(true);
+    try {
+      const res = await fetch("http://localhost:8000/api/payment/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ analysis_id: analysisId }),
+      });
+      if (res.status === 401) { onLogout(); return; }
+      if (!res.ok) throw new Error("Erro ao iniciar pagamento");
+      const { payment_url } = await res.json();
+      window.location.href = payment_url;
+    } catch {
+      setPaying(false);
+    }
+  }
+
+  const sectionStatuses: Record<TabId, BackendStatus> = {
+    skills: sections.skills?.status ?? "red",
+    summary: sections.summary?.status ?? "red",
+    dates: sections.dates?.status ?? "red",
+    impact: sections.impact?.status ?? "red",
+    contact: sections.contact?.status ?? "red",
+  };
+
+  return (
+    <main className="min-h-screen bg-gray-50 px-4 py-10">
+      <div className="max-w-2xl mx-auto space-y-6">
+
+        {/* Top bar */}
+        <div className="flex items-start justify-between">
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={onReset}>
+              ← Nova Análise
+            </Button>
+            <Button variant="outline" size="sm" onClick={onLogout} className="gap-1.5">
+              <LogOut className="h-3.5 w-3.5" />
+              Sair
+            </Button>
+          </div>
+          <div className="text-right">
+            <p className="text-xs tracking-widest uppercase text-gray-400 font-medium">Análise ATS</p>
+            <h1 className="text-lg font-bold text-gray-900">Health Check do Currículo</h1>
+          </div>
+        </div>
+
+        {/* Blurred Score */}
+        <div className="flex flex-col items-center gap-4 bg-white rounded-2xl border border-gray-200 shadow-sm px-6 py-8">
+          <div className="relative">
+            <div style={{ filter: "blur(8px)", pointerEvents: "none", userSelect: "none" }}>
+              <RadialScore score={overallScore} />
+            </div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-5xl">🔒</span>
+            </div>
+          </div>
+        </div>
+
+        {/* CTA Card */}
+        <div className="border-2 border-indigo-500 bg-white shadow-lg rounded-2xl p-8 flex flex-col items-center gap-4 text-center">
+          <span className="text-3xl">🔒</span>
+          <h2 className="text-xl font-bold text-gray-900">Sua análise está pronta!</h2>
+          <p className="text-sm text-gray-500 max-w-sm">
+            Desbloqueie o resultado completo para ver os detalhes de cada seção, recomendações e pontos de melhoria.
+          </p>
+          <button
+            onClick={handleUnlock}
+            disabled={paying}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-semibold rounded-xl py-3 px-8 transition-colors"
+          >
+            {paying ? "Redirecionando..." : "Desbloquear resultado — R$ 9,90"}
+          </button>
+          <p className="text-xs text-gray-400">🔒 Pagamento seguro via PIX</p>
+        </div>
+
+        {/* Disabled TabBar */}
+        <div className="overflow-x-auto">
+          <div className="rounded-xl bg-gray-100 p-1 flex gap-1 min-w-max w-full">
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                disabled
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium opacity-50 whitespace-nowrap text-gray-500"
+                style={{ cursor: "not-allowed" }}
+              >
+                <span>{tab.title}</span>
+                <span
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: dotColor(sectionStatuses[tab.id]) }}
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <p className="text-center text-xs text-gray-400 pb-4">
+          · Análise ATS · Resultados gerados por IA
+        </p>
+
+      </div>
+    </main>
+  );
+}
+
 // ─── Result View ──────────────────────────────────────────────────────────────
 
 type TabId = "skills" | "summary" | "dates" | "impact" | "contact";
@@ -663,13 +791,31 @@ export default function Home() {
   const [token, setToken] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
   const [analysisTime, setAnalysisTime] = useState("");
+  const initialized = useRef(false);
 
-  // Restaurar sessão do localStorage ao montar
+  // Restaurar sessão e resultado pendente do localStorage ao montar
   useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+
     const stored = localStorage.getItem("ats_token");
+    console.log(">>> PAGE INIT: token exists:", !!stored);
     if (stored) {
       setToken(stored);
-      setAppState("input");
+      const pending = localStorage.getItem("ats_pending_result");
+      console.log(">>> PAGE INIT: pending exists:", !!pending);
+      if (pending) {
+        const parsed = JSON.parse(pending);
+        console.log(">>> PAGE INIT: parsed keys:", Object.keys(parsed));
+        console.log(">>> PAGE INIT: paywall_active:", parsed.paywall_active);
+        localStorage.removeItem("ats_pending_result");
+        setResult(parsed);
+        setAppState("result");
+        console.log(">>> PAGE INIT: state set to result");
+      } else {
+        setAppState("input");
+        console.log(">>> PAGE INIT: state set to input");
+      }
     }
   }, []);
 
@@ -720,7 +866,19 @@ export default function Home() {
 
   if (appState === "auth") return <AuthForm onAuth={handleAuth} />;
   if (appState === "loading") return <LoadingView />;
-  if (appState === "result" && result)
+  if (appState === "result" && result) {
+    if (result.paywall_active) {
+      return (
+        <PaywallView
+          preview={result.preview}
+          analysisId={result.analysis_id}
+          token={token}
+          onReset={handleReset}
+          onLogout={handleLogout}
+        />
+      );
+    }
     return <ResultView result={result} analysisTime={analysisTime} onReset={handleReset} onLogout={handleLogout} />;
+  }
   return <InputView onSubmit={handleSubmit} onLogout={handleLogout} />;
 }

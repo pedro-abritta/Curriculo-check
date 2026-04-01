@@ -41,12 +41,27 @@ def add_tokens(user_id: str, tokens: int) -> dict:
 # Análises
 # ---------------------------------------------------------------------------
 
-def save_analysis(user_id: str, job_area: str, tokens_used: int) -> dict:
-    print(f"SAVE ANALYSIS: user_id={user_id}, job_area={job_area}, tokens_used={tokens_used}")
+def save_analysis(user_id: str, job_area: str, tokens_used: int, result_json: dict) -> dict:
     db = _client()
     result = db.table("analyses").insert({
         "user_id": user_id,
         "job_area": job_area,
         "tokens_used": tokens_used,
+        "result_json": result_json,
+        "paid": False,
     }).execute()
+    return result.data[0]
+
+
+def get_analysis(analysis_id: str) -> dict | None:
+    db = _client()
+    result = db.table("analyses").select("*").eq("id", analysis_id).execute()
+    if not result.data:
+        return None
+    return result.data[0]
+
+
+def mark_analysis_paid(analysis_id: str) -> dict:
+    db = _client()
+    result = db.table("analyses").update({"paid": True}).eq("id", analysis_id).execute()
     return result.data[0]

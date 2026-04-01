@@ -7,6 +7,7 @@ from app.services.database import add_tokens, get_or_create_user, save_analysis,
 from app.services.dates_analyzer import analyze_dates
 from app.services.impact_analyzer import analyze_impact
 from app.services.parser import extract_text_from_docx, extract_text_from_pdf
+from app.services.paywall_toggle import PAYWALL_ENABLED
 from app.services.section_toggle import ACTIVE_SECTIONS
 from app.services.skills_analyzer import analyze_skills
 from app.services.summary_analyzer import analyze_summary
@@ -22,6 +23,14 @@ ALLOWED_CONTENT_TYPES = {
 
 _DISABLED = {"disabled": True}
 
+SECTION_WEIGHTS = {
+    "skills": 0.30,
+    "summary": 0.25,
+    "dates": 0.15,
+    "impact": 0.15,
+    "contact": 0.15,
+}
+
 
 def _section_score(section: dict) -> int:
     if not section or section.get("disabled"):
@@ -29,6 +38,28 @@ def _section_score(section: dict) -> int:
     if "overall" in section:
         return section["overall"].get("score", 0)
     return section.get("score", 0)
+
+
+def _build_preview(full_result: dict, overall_score: int) -> dict:
+    def section_preview(section: dict) -> dict:
+        if not section or section.get("disabled"):
+            return {"score": 0, "status": "red", "disabled": True}
+        score = section.get("overall", {}).get("score", section.get("score", 0))
+        status = section.get("overall", {}).get("status", section.get("status", "red"))
+        return {"score": score, "status": status}
+
+    return {
+        "overall_score": overall_score,
+        "user_area": full_result["user_area"],
+        "job_area": full_result["job_area"],
+        "sections": {
+            "skills": section_preview(full_result["skills"]),
+            "summary": section_preview(full_result["summary"]),
+            "dates": section_preview(full_result["dates"]),
+            "impact": section_preview(full_result["impact"]),
+            "contact": section_preview(full_result["contact"]),
+        },
+    }
 
 
 @router.post("/analyze")
@@ -109,13 +140,8 @@ async def analyze(
         areas.get("tokens_used", 0),
     ])
 
-    # Persistência no banco
-    user = get_or_create_user(current_user.email)
-    update_user_area(user["id"], areas["user_area"])
-    save_analysis(user["id"], areas["job_area"], total_tokens)
-    add_tokens(user["id"], total_tokens)
-
-    return {
+    # Resultado completo
+    full_result = {
         "status": "success",
         "resume_text": resume_text,
         "job_description": job_description,
@@ -129,4 +155,28 @@ async def analyze(
         "dates": dates,
         "summary": summary,
         "impact": impact,
+    }
+
+    # Score geral (mesmos pesos do frontend)
+    overall_score = round(
+        _section_score(skills) * SECTION_WEIGHTS["skills"] +
+        _section_score(summary) * SECTION_WEIGHTS["summary"] +
+        _section_score(dates) * SECTION_WEIGHTS["dates"] +
+        _section_score(impact) * SECTION_WEIGHTS["impact"] +
+        _section_score(contact) * SECTION_WEIGHTS["contact"]
+    )
+
+    # Persistência no banco
+    user = get_or_create_user(current_user.email)
+    update_user_area(user["id"], areas["user_area"])
+    analysis_record = save_analysis(user["id"], areas["job_area"], total_tokens, full_result)
+    add_tokens(user["id"], total_tokens)
+
+    if not PAYWALL_ENABLED:
+        return {**full_result, "paywall_active": False}
+
+    return {
+        "paywall_active": True,
+        "analysis_id": analysis_record["id"],
+        "preview": _build_preview(full_result, overall_score),
     }

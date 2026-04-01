@@ -63,3 +63,11 @@ score = round(found / total * 100)  # retorna int: 86
 12. Ao criar usuário no Supabase Auth, se o insert na tabela users falhar, o usuário fica "órfão" no Auth — o login deve chamar get_or_create_user para recuperar
 13. Desabilitar "Confirm sign up" no Supabase durante desenvolvimento para evitar bloqueio por confirmação de email
 14. service_role key vai no backend (.env), anon key vai no frontend (.env.local) — nunca expor service_role no frontend
+
+## Monetização
+15. React Strict Mode em dev roda useEffect duas vezes — usar useRef para garantir execução única quando há lógica de localStorage com remoção
+16. Credenciais de teste do Mercado Pago não suportam PIX — usar credenciais de produção para testar
+17. Mercado Pago exige HTTPS para auto_return — remover em localhost
+18. PIX requer chave Pix cadastrada na conta do Mercado Pago do vendedor
+19. Não excluir "bank_transfer" dos payment_methods — PIX está nessa categoria
+20. result_json salvo no banco evita rodar análise duas vezes (economia de tokens da Claude API)
