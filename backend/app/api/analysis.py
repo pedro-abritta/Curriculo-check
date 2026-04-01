@@ -1,8 +1,13 @@
+import logging
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.middleware.auth_middleware import require_auth
 from app.services.database import get_analysis, get_or_create_user
 from app.services.paywall_toggle import PAYWALL_ENABLED
+
+logger = logging.getLogger("security")
 
 router = APIRouter()
 
@@ -13,6 +18,14 @@ SECTION_WEIGHTS = {
     "impact": 0.15,
     "contact": 0.15,
 }
+
+
+def _is_valid_uuid(value: str) -> bool:
+    try:
+        uuid.UUID(value)
+        return True
+    except ValueError:
+        return False
 
 
 def _section_score(section: dict) -> int:
@@ -58,12 +71,32 @@ async def get_analysis_result(
     analysis_id: str,
     current_user=Depends(require_auth),
 ):
+    if not _is_valid_uuid(analysis_id):
+        raise HTTPException(status_code=400, detail="ID de análise inválido.")
+
+    print(f">>> AUTH USER EMAIL: {current_user.email}")
+    print(f">>> AUTH USER ID (from JWT): {current_user.id}")
     user = get_or_create_user(current_user.email)
+    print(f">>> USER ID (from users table): {user['id']}")
+    print(f">>> JWT ID == DB ID: {current_user.id == user['id']}")
+
     record = get_analysis(analysis_id)
+    print(f">>> RECORD USER_ID: {record['user_id'] if record else 'NOT FOUND'}")
+    print(f">>> MATCH: {record['user_id'] == user['id'] if record else False}")
 
     if record is None:
         raise HTTPException(status_code=404, detail="Análise não encontrada.")
+
+    # Guard: se user["id"] for None, algo está errado na tabela users
+    if not user.get("id"):
+        logger.warning("get_or_create_user returned record without id for email: %s", current_user.email)
+        raise HTTPException(status_code=403, detail="Acesso negado.")
+
     if record["user_id"] != user["id"]:
+        logger.warning(
+            "Unauthorized access attempt: user %s (email: %s) tried to access analysis %s owned by %s",
+            user["id"], current_user.email, analysis_id, record["user_id"],
+        )
         raise HTTPException(status_code=403, detail="Acesso negado.")
 
     result_json = record.get("result_json") or {}

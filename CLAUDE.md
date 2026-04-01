@@ -91,7 +91,7 @@
 - Fase 5: Banco de Dados (Supabase) ✅
 - Fase 6: Autenticação & Cadastro ✅
 - Fase 7: Monetização ✅
-- Fase 8: Polish
+- Fase 8: Polish & Edge Cases ✅
 - Fase 9: Deploy
 
 ## Regras de Trabalho do Claude Code
@@ -175,6 +175,22 @@
 - Webhook /api/payment/webhook recebe confirmação do Mercado Pago e marca análise como paga
 - Página /payment/success faz polling no status até confirmar pagamento
 - Resultado pago é salvo no localStorage (ats_pending_result) e lido ao carregar page.tsx
+
+### Segurança
+- Sanitizer (backend/app/services/sanitizer.py): valida texto de currículo e vaga antes de processar
+  - Bloqueia: SQL injection direto e clássico, script injection, prompt injection (PT e EN)
+  - Limite de texto: 50.000 caracteres
+  - Mensagem: "Informações maliciosas detectadas..."
+- Rate limiting via slowapi:
+  - Global: 60 req/min por IP
+  - /api/analyze: 10/hora por usuário
+  - /api/auth/register: 5/hora por IP
+  - /api/auth/login: 10/hora por IP
+- Headers de segurança: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection
+- Validação de UUID em endpoints que recebem IDs
+- Verificação de ownership: usuário só acessa suas próprias análises
+- Token JWT obrigatório em todos os endpoints exceto auth e health
+- MutableHeaders usa del em vez de pop para remover headers
 
 ### Autenticação
 - Supabase Auth com email/senha

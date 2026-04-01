@@ -85,9 +85,13 @@ function isMissingSkill(skill: string, missingList: string[]): boolean {
 function InputView({
   onSubmit,
   onLogout,
+  apiError,
+  onClearApiError,
 }: {
   onSubmit: (file: File, jobText: string) => void;
   onLogout: () => void;
+  apiError?: string;
+  onClearApiError?: () => void;
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [jobText, setJobText] = useState("");
@@ -200,6 +204,12 @@ function InputView({
             />
           </CardContent>
         </Card>
+
+        {apiError && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+            <p className="text-sm font-medium text-red-800">{apiError}</p>
+          </div>
+        )}
 
         <Button
           size="lg"
@@ -791,6 +801,7 @@ export default function Home() {
   const [token, setToken] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
   const [analysisTime, setAnalysisTime] = useState("");
+  const [inputError, setInputError] = useState("");
   const initialized = useRef(false);
 
   // Restaurar sessão e resultado pendente do localStorage ao montar
@@ -834,6 +845,7 @@ export default function Home() {
   }
 
   async function handleSubmit(file: File, jobText: string) {
+    setInputError("");
     setAppState("loading");
     try {
       const formData = new FormData();
@@ -847,6 +859,12 @@ export default function Home() {
       });
 
       if (res.status === 401) { handleLogout(); return; }
+      if (res.status === 400 || res.status === 429) {
+        const data = await res.json();
+        setInputError(data.detail || "Erro na análise. Tente novamente.");
+        setAppState("input");
+        return;
+      }
       if (!res.ok) throw new Error("Erro na análise");
 
       const data = await res.json();
@@ -880,5 +898,5 @@ export default function Home() {
     }
     return <ResultView result={result} analysisTime={analysisTime} onReset={handleReset} onLogout={handleLogout} />;
   }
-  return <InputView onSubmit={handleSubmit} onLogout={handleLogout} />;
+  return <InputView onSubmit={handleSubmit} onLogout={handleLogout} apiError={inputError} onClearApiError={() => setInputError("")} />;
 }

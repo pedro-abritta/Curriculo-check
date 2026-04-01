@@ -71,3 +71,9 @@ score = round(found / total * 100)  # retorna int: 86
 18. PIX requer chave Pix cadastrada na conta do Mercado Pago do vendedor
 19. Não excluir "bank_transfer" dos payment_methods — PIX está nessa categoria
 20. result_json salvo no banco evita rodar análise duas vezes (economia de tokens da Claude API)
+
+## Segurança
+21. MutableHeaders do Starlette não tem método pop() — usar del response.headers["key"] para remover headers
+22. Falha de ownership no GET /api/analysis — SEMPRE comparar user_id do token com user_id da análise antes de retornar dados
+23. Rate limit de análises é naturalmente limitado pelo tempo de processamento (~30s), mas o slowapi garante proteção contra abuso
+24. validate_text deve rodar TANTO no resume_text quanto no job_description

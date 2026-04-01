@@ -1,5 +1,8 @@
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+import logging
 
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+
+from app.limiter import limiter
 from app.middleware.auth_middleware import require_auth
 from app.services.area_classifier import classify_areas
 from app.services.contact_analyzer import analyze_contact
@@ -8,18 +11,27 @@ from app.services.dates_analyzer import analyze_dates
 from app.services.impact_analyzer import analyze_impact
 from app.services.parser import extract_text_from_docx, extract_text_from_pdf
 from app.services.paywall_toggle import PAYWALL_ENABLED
+from app.services.sanitizer import validate_text
 from app.services.section_toggle import ACTIVE_SECTIONS
 from app.services.skills_analyzer import analyze_skills
 from app.services.summary_analyzer import analyze_summary
 
+logger = logging.getLogger("security")
+
 router = APIRouter()
 
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+MAX_JOB_DESCRIPTION = 10_000
 
 ALLOWED_CONTENT_TYPES = {
     "application/pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 }
+
+DANGEROUS_EXTENSIONS = frozenset({
+    ".exe", ".bat", ".cmd", ".sh", ".js", ".py", ".rb",
+    ".php", ".pl", ".vbs", ".ps1", ".jar", ".msi", ".scr",
+})
 
 _DISABLED = {"disabled": True}
 
@@ -44,8 +56,10 @@ def _build_preview(full_result: dict, overall_score: int) -> dict:
     def section_preview(section: dict) -> dict:
         if not section or section.get("disabled"):
             return {"score": 0, "status": "red", "disabled": True}
-        score = section.get("overall", {}).get("score", section.get("score", 0))
-        status = section.get("overall", {}).get("status", section.get("status", "red"))
+        score = section.get("overall", {}).get(
+            "score", section.get("score", 0))
+        status = section.get("overall", {}).get(
+            "status", section.get("status", "red"))
         return {"score": score, "status": status}
 
     return {
@@ -63,11 +77,23 @@ def _build_preview(full_result: dict, overall_score: int) -> dict:
 
 
 @router.post("/analyze")
+@limiter.limit("10/hour")
 async def analyze(
+    request: Request,
     file: UploadFile = File(...),
     job_description: str = Form(...),
     current_user=Depends(require_auth),
 ):
+    # Rejeitar extensões perigosas no nome do arquivo
+    filename = (file.filename or "").lower()
+    for ext in DANGEROUS_EXTENSIONS:
+        if ext in filename:
+            logger.warning("Rejected dangerous file extension: %s", filename)
+            raise HTTPException(
+                status_code=422,
+                detail="Formato inválido. Envie um arquivo .pdf ou .docx.",
+            )
+
     # Validar tipo do arquivo
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(
@@ -90,6 +116,11 @@ async def analyze(
             status_code=422,
             detail="A descrição da vaga não pode estar vazia.",
         )
+    if len(job_description) > MAX_JOB_DESCRIPTION:
+        raise HTTPException(
+            status_code=422,
+            detail="A descrição da vaga deve ter no máximo 10.000 caracteres.",
+        )
 
     # Extrair texto
     try:
@@ -109,8 +140,25 @@ async def analyze(
             detail="Nenhum texto encontrado no arquivo. O documento pode estar vazio ou protegido.",
         )
 
+    # Sanitizar textos antes de qualquer processamento
+    print(f">>> SANITIZER: validando resume_text ({len(resume_text)} chars)")
+    is_safe, error_msg = validate_text(resume_text)
+    print(f">>> SANITIZER resume: safe={is_safe}")
+    if not is_safe:
+        logger.warning("Malicious content detected in uploaded resume")
+        raise HTTPException(status_code=400, detail=error_msg)
+
+    print(
+        f">>> SANITIZER: validando job_description ({len(job_description)} chars)")
+    is_safe, error_msg = validate_text(job_description)
+    print(f">>> SANITIZER job: safe={is_safe}")
+    if not is_safe:
+        logger.warning("Malicious content detected in job description")
+        raise HTTPException(status_code=400, detail=error_msg)
+
     # Seções de análise (controladas por ACTIVE_SECTIONS)
-    contact = analyze_contact(resume_text) if ACTIVE_SECTIONS["contact"] else _DISABLED
+    contact = analyze_contact(
+        resume_text) if ACTIVE_SECTIONS["contact"] else _DISABLED
 
     # Skills roda antes do summary para fornecer job_skills
     if ACTIVE_SECTIONS["skills"]:
@@ -123,9 +171,12 @@ async def analyze(
         skills = _DISABLED
         job_skills = []
 
-    dates = analyze_dates(resume_text) if ACTIVE_SECTIONS["dates"] else _DISABLED
-    summary = analyze_summary(resume_text, job_skills) if ACTIVE_SECTIONS["summary"] else _DISABLED
-    impact = analyze_impact(resume_text) if ACTIVE_SECTIONS["impact_phrases"] else _DISABLED
+    dates = analyze_dates(
+        resume_text) if ACTIVE_SECTIONS["dates"] else _DISABLED
+    summary = analyze_summary(
+        resume_text, job_skills) if ACTIVE_SECTIONS["summary"] else _DISABLED
+    impact = analyze_impact(
+        resume_text) if ACTIVE_SECTIONS["impact_phrases"] else _DISABLED
 
     # Classificação de áreas (usuário e vaga)
     areas = classify_areas(resume_text, job_description)
@@ -169,7 +220,8 @@ async def analyze(
     # Persistência no banco
     user = get_or_create_user(current_user.email)
     update_user_area(user["id"], areas["user_area"])
-    analysis_record = save_analysis(user["id"], areas["job_area"], total_tokens, full_result)
+    analysis_record = save_analysis(
+        user["id"], areas["job_area"], total_tokens, full_result)
     add_tokens(user["id"], total_tokens)
 
     if not PAYWALL_ENABLED:
