@@ -77,3 +77,6 @@ score = round(found / total * 100)  # retorna int: 86
 22. Falha de ownership no GET /api/analysis — SEMPRE comparar user_id do token com user_id da análise antes de retornar dados
 23. Rate limit de análises é naturalmente limitado pelo tempo de processamento (~30s), mas o slowapi garante proteção contra abuso
 24. validate_text deve rodar TANTO no resume_text quanto no job_description
+
+## Deploy
+25. Backend usa nixpacks.toml para configurar build no Railway/Render — especificar python313, pip install -r requirements.txt e uvicorn com PORT dinâmica (${PORT:-8000})

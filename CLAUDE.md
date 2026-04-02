@@ -92,7 +92,8 @@
 - Fase 6: Autenticação & Cadastro ✅
 - Fase 7: Monetização ✅
 - Fase 8: Polish & Edge Cases ✅
-- Fase 9: Deploy
+- Fase 9: Deploy 🚧
+  - Backend: nixpacks.toml criado para deploy no Railway/Render (python313, uvicorn, PORT dinâmica)
 
 ## Regras de Trabalho do Claude Code
 
