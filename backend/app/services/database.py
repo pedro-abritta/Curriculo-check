@@ -93,6 +93,8 @@ def get_feedback(analysis_id: str, user_id: str) -> dict | None:
         .select("*")
         .eq("analysis_id", analysis_id)
         .eq("user_id", user_id)
+        .order("created_at", desc=True)
+        .limit(1)
         .execute()
     )
     if not result.data:

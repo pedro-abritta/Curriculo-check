@@ -60,10 +60,6 @@ async def post_feedback(
         )
         raise HTTPException(status_code=403, detail="Acesso negado.")
 
-    existing = get_feedback(body.analysis_id, user["id"])
-    if existing is not None:
-        raise HTTPException(status_code=409, detail="Você já enviou um feedback para esta análise.")
-
     save_feedback(user["id"], body.analysis_id, body.rating, body.comment)
     return {"success": True}
 
