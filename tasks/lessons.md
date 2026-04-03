@@ -81,3 +81,5 @@ score = round(found / total * 100)  # retorna int: 86
 ## Deploy
 25. Backend usa nixpacks.toml para configurar build no Railway/Render — especificar python313, pip install -r requirements.txt e uvicorn com PORT dinâmica (${PORT:-8000})
 26. Next.js 14 em produção exige Suspense boundary em qualquer página que use useSearchParams() — extrair conteúdo para componente interno e envolver o export default com <Suspense>
+27. Nunca hardcodar URLs do backend no frontend — centralizar em src/lib/config.ts com NEXT_PUBLIC_API_URL e fallback para localhost:8000; lembrar de adicionar a URL do frontend no CORS do backend
+28. Ao substituir strings com replace_all, verificar se a string resultante precisa de template literal (backticks) — substituir "http://localhost:8000" por "${API_URL}" dentro de aspas duplas não funciona em JS; a interpolação só ocorre com backticks (`${API_URL}/rota`)

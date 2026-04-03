@@ -14,6 +14,7 @@ import {
   type EvidenceStatus,
 } from "@/components/evidence-card";
 import { AuthForm } from "@/components/AuthForm";
+import { API_URL } from "@/lib/config";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -574,7 +575,7 @@ function PaywallView({
     if (paying) return;
     setPaying(true);
     try {
-      const res = await fetch("http://localhost:8000/api/payment/create", {
+      const res = await fetch(`${API_URL}/api/payment/create`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -852,7 +853,7 @@ export default function Home() {
       formData.append("file", file);
       formData.append("job_description", jobText);
 
-      const res = await fetch("http://localhost:8000/api/analyze", {
+      const res = await fetch(`${API_URL}/api/analyze`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,

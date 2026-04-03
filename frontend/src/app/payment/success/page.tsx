@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { API_URL } from "@/lib/config";
 
 function PaymentSuccessContent() {
   const searchParams = useSearchParams();
@@ -22,7 +23,7 @@ function PaymentSuccessContent() {
     async function checkAndRedirect() {
       console.log(">>> 1. Verificando status do pagamento...");
       const statusRes = await fetch(
-        `http://localhost:8000/api/payment/status/${analysisId}`,
+        `${API_URL}/api/payment/status/${analysisId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       console.log(">>> 2. Status response:", statusRes.status);
@@ -36,7 +37,7 @@ function PaymentSuccessContent() {
 
       console.log(">>> 4. Buscando resultado completo...");
       const resultRes = await fetch(
-        `http://localhost:8000/api/analysis/${analysisId}`,
+        `${API_URL}/api/analysis/${analysisId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       console.log(">>> 5. Result response:", resultRes.status);

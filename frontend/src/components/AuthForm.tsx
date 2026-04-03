@@ -4,8 +4,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { API_URL } from "@/lib/config";
 
-const API = "http://localhost:8000/api/auth";
+const API = `${API_URL}/api/auth`;
 
 interface AuthFormProps {
   onAuth: (token: string) => void;

@@ -95,6 +95,8 @@
 - Fase 9: Deploy 🚧
   - Backend: nixpacks.toml criado para deploy no Railway/Render (python313, uvicorn, PORT dinâmica)
   - Frontend: useSearchParams() envolvido em Suspense boundary (obrigatório no Next.js 14 em produção)
+  - Frontend: URLs do backend centralizadas em src/lib/config.ts via NEXT_PUBLIC_API_URL (usar backticks para interpolação, nunca aspas duplas)
+  - Backend: CORS atualizado com URL da Vercel (ats-analyzer-eosin.vercel.app)
 
 ## Regras de Trabalho do Claude Code
 
