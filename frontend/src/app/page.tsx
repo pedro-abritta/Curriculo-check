@@ -14,6 +14,7 @@ import {
   type EvidenceStatus,
 } from "@/components/evidence-card";
 import { AuthForm } from "@/components/AuthForm";
+import { FeedbackWidget } from "@/components/FeedbackWidget";
 import { API_URL } from "@/lib/config";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -697,11 +698,13 @@ function ResultView({
   analysisTime,
   onReset,
   onLogout,
+  token,
 }: {
   result: any;
   analysisTime: string;
   onReset: () => void;
   onLogout: () => void;
+  token: string | null;
 }) {
   const [activeTab, setActiveTab] = useState<TabId>("skills");
 
@@ -791,6 +794,10 @@ function ResultView({
         </p>
 
       </div>
+
+      {result.analysis_id && (
+        <FeedbackWidget analysisId={result.analysis_id} token={token} />
+      )}
     </main>
   );
 }
@@ -897,7 +904,7 @@ export default function Home() {
         />
       );
     }
-    return <ResultView result={result} analysisTime={analysisTime} onReset={handleReset} onLogout={handleLogout} />;
+    return <ResultView result={result} analysisTime={analysisTime} onReset={handleReset} onLogout={handleLogout} token={token} />;
   }
   return <InputView onSubmit={handleSubmit} onLogout={handleLogout} apiError={inputError} onClearApiError={() => setInputError("")} />;
 }

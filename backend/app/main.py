@@ -12,6 +12,7 @@ load_dotenv()
 from app.api.analysis import router as analysis_router
 from app.api.analyze import router as analyze_router
 from app.api.auth import router as auth_router
+from app.api.feedback import router as feedback_router
 from app.api.payment import router as payment_router
 from app.limiter import limiter
 
@@ -57,6 +58,7 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/api/auth")
 app.include_router(analyze_router, prefix="/api")
 app.include_router(analysis_router, prefix="/api")
+app.include_router(feedback_router, prefix="/api")
 app.include_router(payment_router, prefix="/api")
 
 

@@ -225,7 +225,7 @@ async def analyze(
     add_tokens(user["id"], total_tokens)
 
     if not PAYWALL_ENABLED:
-        return {**full_result, "paywall_active": False}
+        return {**full_result, "paywall_active": False, "analysis_id": analysis_record["id"]}
 
     return {
         "paywall_active": True,

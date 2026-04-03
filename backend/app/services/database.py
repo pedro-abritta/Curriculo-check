@@ -25,15 +25,18 @@ def get_or_create_user(email: str, auth_user_id: str | None = None) -> dict:
 
 def update_user_area(user_id: str, area: str) -> dict:
     db = _client()
-    result = db.table("users").update({"area": area}).eq("id", user_id).execute()
+    result = db.table("users").update(
+        {"area": area}).eq("id", user_id).execute()
     return result.data[0]
 
 
 def add_tokens(user_id: str, tokens: int) -> dict:
     db = _client()
-    user = db.table("users").select("total_tokens_used").eq("id", user_id).execute().data[0]
+    user = db.table("users").select("total_tokens_used").eq(
+        "id", user_id).execute().data[0]
     new_total = user["total_tokens_used"] + tokens
-    result = db.table("users").update({"total_tokens_used": new_total}).eq("id", user_id).execute()
+    result = db.table("users").update(
+        {"total_tokens_used": new_total}).eq("id", user_id).execute()
     return result.data[0]
 
 
@@ -63,5 +66,35 @@ def get_analysis(analysis_id: str) -> dict | None:
 
 def mark_analysis_paid(analysis_id: str) -> dict:
     db = _client()
-    result = db.table("analyses").update({"paid": True}).eq("id", analysis_id).execute()
+    result = db.table("analyses").update(
+        {"paid": True}).eq("id", analysis_id).execute()
+    return result.data[0]
+
+
+# ---------------------------------------------------------------------------
+# Feedback
+# ---------------------------------------------------------------------------
+
+def save_feedback(user_id: str, analysis_id: str, rating: int, comment: str) -> dict:
+    db = _client()
+    result = db.table("feedbacks").insert({
+        "user_id": user_id,
+        "analysis_id": analysis_id,
+        "rating": rating,
+        "comment": comment,
+    }).execute()
+    return result.data[0]
+
+
+def get_feedback(analysis_id: str, user_id: str) -> dict | None:
+    db = _client()
+    result = (
+        db.table("feedbacks")
+        .select("*")
+        .eq("analysis_id", analysis_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+    if not result.data:
+        return None
     return result.data[0]
