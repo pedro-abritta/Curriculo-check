@@ -94,6 +94,7 @@
 - Fase 8: Polish & Edge Cases ✅
 - Fase 9: Deploy 🚧
   - Backend: nixpacks.toml criado para deploy no Railway/Render (python313, uvicorn, PORT dinâmica)
+  - Frontend: useSearchParams() envolvido em Suspense boundary (obrigatório no Next.js 14 em produção)
 
 ## Regras de Trabalho do Claude Code
 

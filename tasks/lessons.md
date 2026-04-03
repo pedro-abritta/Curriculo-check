@@ -80,3 +80,4 @@ score = round(found / total * 100)  # retorna int: 86
 
 ## Deploy
 25. Backend usa nixpacks.toml para configurar build no Railway/Render — especificar python313, pip install -r requirements.txt e uvicorn com PORT dinâmica (${PORT:-8000})
+26. Next.js 14 em produção exige Suspense boundary em qualquer página que use useSearchParams() — extrair conteúdo para componente interno e envolver o export default com <Suspense>

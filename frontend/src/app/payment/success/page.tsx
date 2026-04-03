@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-export default function PaymentSuccess() {
+function PaymentSuccessContent() {
   const searchParams = useSearchParams();
   const analysisId = searchParams.get("analysis_id");
   const [timedOut, setTimedOut] = useState(false);
@@ -101,5 +101,13 @@ export default function PaymentSuccess() {
       </svg>
       <p className="text-gray-600 text-lg font-medium">Confirmando pagamento...</p>
     </main>
+  );
+}
+
+export default function PaymentSuccess() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Carregando...</div>}>
+      <PaymentSuccessContent />
+    </Suspense>
   );
 }
