@@ -195,11 +195,12 @@ function InputView({
         <Card>
           <CardHeader>
             <CardTitle className="text-base font-semibold">Descrição da Vaga</CardTitle>
-            <CardDescription>Cole o texto completo da vaga para uma análise precisa</CardDescription>
+            <CardDescription>Cole o texto completo da vaga para uma análise precisa.</CardDescription>
           </CardHeader>
           <CardContent>
             <Textarea
-              placeholder="Cole aqui a descrição completa da vaga..."
+              placeholder="Cole aqui a descrição completa da vaga...
+              (título da vaga, pré requisitos, habilidades desejáveis. benefícios, tipo de vaga, etc, são irrelevantes para a análise)"
               value={jobText}
               onChange={(e) => setJobText(e.target.value)}
               className="min-h-[196px] resize-y text-sm"
