@@ -15,6 +15,7 @@ import {
 } from "@/components/evidence-card";
 import { AuthForm } from "@/components/AuthForm";
 import { FeedbackWidget } from "@/components/FeedbackWidget";
+import { RoadmapWidget } from "@/components/RoadmapWidget";
 import { API_URL } from "@/lib/config";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -891,11 +892,12 @@ export default function Home() {
     setAppState("input");
   }
 
-  if (appState === "auth") return <AuthForm onAuth={handleAuth} />;
-  if (appState === "loading") return <LoadingView />;
-  if (appState === "result" && result) {
-    if (result.paywall_active) {
-      return (
+  return (
+    <>
+      <RoadmapWidget />
+      {appState === "auth" && <AuthForm onAuth={handleAuth} />}
+      {appState === "loading" && <LoadingView />}
+      {appState === "result" && result && result.paywall_active && (
         <PaywallView
           preview={result.preview}
           analysisId={result.analysis_id}
@@ -903,9 +905,13 @@ export default function Home() {
           onReset={handleReset}
           onLogout={handleLogout}
         />
-      );
-    }
-    return <ResultView result={result} analysisTime={analysisTime} onReset={handleReset} onLogout={handleLogout} token={token} />;
-  }
-  return <InputView onSubmit={handleSubmit} onLogout={handleLogout} apiError={inputError} onClearApiError={() => setInputError("")} />;
+      )}
+      {appState === "result" && result && !result.paywall_active && (
+        <ResultView result={result} analysisTime={analysisTime} onReset={handleReset} onLogout={handleLogout} token={token} />
+      )}
+      {(appState === "input" || (appState === "result" && !result)) && (
+        <InputView onSubmit={handleSubmit} onLogout={handleLogout} apiError={inputError} onClearApiError={() => setInputError("")} />
+      )}
+    </>
+  );
 }
