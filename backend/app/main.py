@@ -1,3 +1,9 @@
+from app.limiter import limiter
+from app.api.payment import router as payment_router
+from app.api.feedback import router as feedback_router
+from app.api.auth import router as auth_router
+from app.api.analyze import router as analyze_router
+from app.api.analysis import router as analysis_router
 import logging
 
 from dotenv import load_dotenv
@@ -9,12 +15,6 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 load_dotenv()
 
-from app.api.analysis import router as analysis_router
-from app.api.analyze import router as analyze_router
-from app.api.auth import router as auth_router
-from app.api.feedback import router as feedback_router
-from app.api.payment import router as payment_router
-from app.limiter import limiter
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,10 +24,13 @@ logging.basicConfig(
 app = FastAPI(title="ATS Backend")
 
 # ── Rate limiting ─────────────────────────────────────────────────────────────
+
+
 async def _rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
     return JSONResponse(
         status_code=429,
-        content={"detail": "Limite de requisições atingido. Tente novamente em alguns minutos."},
+        content={
+            "detail": "Limite de requisições atingido. Tente novamente em alguns minutos."},
     )
 
 app.state.limiter = limiter
@@ -49,7 +52,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://ats-analyzer-eosin.vercel.app"],
+    allow_origins=["http://localhost:3000",
+                   "https://ats-analyser-ia.vercel.app/"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
