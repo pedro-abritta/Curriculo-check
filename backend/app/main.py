@@ -53,7 +53,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000",
-                   "https://ats-analyser-ia.vercel.app/"],
+                   "https://ats-analyser-ia.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
