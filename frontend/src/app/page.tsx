@@ -864,6 +864,8 @@ export default function Home() {
           console.log(">>> PAGE INIT: state set to input");
         }
       }
+    } else {
+      setAppState("auth");
     }
   }, []);
 
