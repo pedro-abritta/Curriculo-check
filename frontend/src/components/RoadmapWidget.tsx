@@ -6,25 +6,18 @@ import { SHOW_ROADMAP } from "@/lib/config";
 
 const ITEMS = [
   {
-    badge: "Em desenvolvimento",
+    badge: "Planejado",
     badgeClass: "bg-amber-100 text-amber-800",
     title: "Validação inteligente de currículo",
     description:
       "Identificar automaticamente se o arquivo enviado é realmente um currículo ou um documento aleatório.",
   },
   {
-    badge: "Em desenvolvimento",
+    badge: "Planejado",
     badgeClass: "bg-amber-100 text-amber-800",
     title: "Validação de descrição da vaga",
     description:
       "Verificar se o texto inserido é uma descrição de vaga real ou apenas um texto qualquer.",
-  },
-  {
-    badge: "Planejado",
-    badgeClass: "bg-indigo-100 text-indigo-800",
-    title: "Confirmação de email",
-    description:
-      "Verificação por email para maior segurança da sua conta.",
   },
   {
     badge: "Planejado",
