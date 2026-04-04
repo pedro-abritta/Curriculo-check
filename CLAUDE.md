@@ -1,261 +1,118 @@
 # ATS Analyzer
 
-## Arquitetura
-- Monorepo: /frontend (Next.js 14 + shadcn/ui + Tailwind) e /backend (FastAPI + Python)
-- Frontend roda na porta 3000, Backend na porta 8000
-- Comunicação via REST API com FormData
-
 ## Stack
 - Frontend: Next.js 14 (App Router), TypeScript, shadcn/ui, Tailwind CSS
 - Backend: FastAPI, Python, pdfplumber, python-docx
 - IA: Claude API (claude-sonnet-4-20250514, temperature: 0)
+- Banco: Supabase (PostgreSQL + Auth)
+- Pagamento: Mercado Pago Checkout Pro (PIX)
+- Deploy: Vercel (front) + Railway (back)
 
 ## Regras do Projeto
-- Scores sempre arredondados com round() (nunca ceil)
-- O texto completo do currículo e da vaga deve ser usado nas análises (nunca truncar)
+- Scores arredondados com round() (nunca ceil)
+- Texto completo do currículo e vaga nas análises (nunca truncar)
 - Match de skills é EXATO e case-insensitive (sem sinônimos)
-- Respostas da Claude API devem ser sempre JSON puro (sem markdown)
+- Respostas da Claude API devem ser JSON puro (sem markdown)
 - Mensagens de erro em português
-- Design clean com shadcn/ui
+- Sempre consulte tasks/lessons.md antes de iniciar qualquer tarefa
+
+## Estrutura
+
+### Backend (backend/)
+
+app/
+├── api/
+│   ├── auth.py          — registro, login (email+senha via Supabase Auth)
+│   ├── analyze.py       — POST /api/analyze (protegido por JWT)
+│   ├── analysis.py      — GET /api/analysis/{id} (resultado salvo)
+│   ├── payment.py       — Mercado Pago: criar preferência, webhook, status
+│   └── feedback.py      — POST/GET feedback do usuário
+├── middleware/
+│   └── auth_middleware.py — verificação JWT + usuário ativo
+├── services/
+│   ├── contact_analyzer.py  — regex + Claude API
+│   ├── skills_analyzer.py   — Claude API + regex matching
+│   ├── dates_analyzer.py    — 100% regex
+│   ├── summary_analyzer.py  — regex + Claude API
+│   ├── impact_analyzer.py   — 100% Claude API
+│   ├── parser.py            — extração texto PDF/DOCX
+│   ├── database.py          — persistência Supabase
+│   ├── sanitizer.py         — bloqueio SQL/script/prompt injection
+│   ├── section_toggle.py    — ativa/desativa seções (economiza tokens em dev)
+│   ├── paywall_toggle.py    — PAYWALL_ENABLED True/False
+│   └── area_classifier.py   — classifica área do usuário e vaga
+└── limiter.py               — rate limiting (slowapi)
+
+### Frontend (frontend/)
+
+src/
+├── app/
+│   ├── page.tsx                    — telas: auth → input → loading → result
+│   └── payment/
+│       ├── success/page.tsx        — polling pós-pagamento
+│       └── failure/page.tsx        — falha no pagamento
+├── components/
+│   ├── AuthForm.tsx                — login/registro
+│   ├── FeedbackWidget.tsx          — botão flutuante + painel de avaliação
+│   ├── RoadmapWidget.tsx           — próximas funcionalidades (toggle SHOW_ROADMAP)
+│   ├── evidence-card.tsx           — cards expandíveis de resultado
+│   ├── progress-bar.tsx            — barra de progresso por seção
+│   └── score-ring.tsx              — círculo SVG do score geral
+└── lib/
+├── config.ts                   — API_URL e SHOW_ROADMAP
+└── supabase.ts                 — client Supabase
 
 ## Seções de Análise
-1. Contato (7 itens): nome, email, telefone, linkedin, endereço, data nascimento, portfólio
-2. Skills (hard skills): separadas em required e nice_to_have
-3. Datas: formato aceito mm/aaaa
-4. Resumo Profissional: 3 pilares (skills, verbo de impacto, métricas)
-5. Frases de Impacto: verbo/substantivo + número + contexto
+1. **Contato** (7 itens): nome, email, telefone, linkedin, endereço, data nascimento, portfólio
+2. **Skills**: hard skills separadas em required (peso 70%) e nice_to_have (peso 30%). Match exato case-insensitive com busca em 2 etapas: lista da IA + word boundary no texto
+3. **Datas**: formato aceito mm/aaaa. Error groups agrupam datas com mesmo tipo de erro
+4. **Resumo Profissional**: 3 pilares (métricas via regex, skills reutiliza lista do skills_analyzer, verbos de impacto via Claude API)
+5. **Frases de Impacto**: score baseado em quantidade (0=0%, 1=33%, 2=67%, 3+=100%). Desduplicação entre Resumo e Experiência
 
-## Cores de Status
-- green: bom
-- yellow: atenção
-- red: crítico
-(cada seção tem regras específicas de threshold)
+## Score Geral
+Skills 30% + Resumo 25% + Datas 15% + Impacto 15% + Contato 15% (calculado no frontend)
 
-## Estrutura do Backend
-- app/api/ → rotas
-- app/services/ → lógica de negócio (analyzers)
-- app/models/ → schemas
+## Banco de Dados (Supabase)
+### Tabelas
+- **users**: id, email, area, total_tokens_used, active (bool), created_at, updated_at
+- **analyses**: id, user_id, job_area, tokens_used, paid (bool), result_json (JSONB), created_at
+- **feedbacks**: id, user_id, analysis_id, rating (0-10), comment, created_at
 
-## Supabase
-- URL: SUPABASE_URL (env backend) / NEXT_PUBLIC_SUPABASE_URL (env frontend)
-- Chave pública: SUPABASE_PUBLIC_KEY (env backend) / NEXT_PUBLIC_SUPABASE_ANON_KEY (env frontend)
-- Client backend: `backend/app/services/database.py`
-- Client frontend: `frontend/src/lib/supabase.ts`
-- Tabelas: `users` (id uuid PK, email, area text, total_tokens_used int, created_at, updated_at), `analyses` (id uuid PK, user_id uuid FK, job_area, tokens_used int, created_at)
-- Campo "score" removido da tabela analyses (irrelevante para persistência)
-- Funções DB: get_or_create_user, update_user_area, add_tokens, save_analysis
-- Classificação de área: `backend/app/services/area_classifier.py`
-- Tokens reais contabilizados de todas as chamadas Claude API (input + output tokens)
-- Cada analyzer retorna tokens_used no seu resultado
-- Backend usa service_role key (bypassa RLS); Frontend usa anon key (apenas para auth)
+### Variáveis de ambiente
+- Backend (.env): SUPABASE_URL, SUPABASE_KEY (service_role), ANTHROPIC_API_KEY, MP_ACCESS_TOKEN
+- Frontend (.env.local): NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_API_URL, NEXT_PUBLIC_MP_PUBLIC_KEY
 
-## Autenticação
-- Método: Email + senha via Supabase Auth
-- Backend: `backend/app/api/auth.py` → POST /api/auth/register, /login, /logout
-- Middleware: `backend/app/middleware/auth_middleware.py` → dependency `require_auth`
-- Endpoint protegido: POST /api/analyze (Authorization: Bearer <token>)
-- Endpoints públicos: /api/auth/register, /api/auth/login, /health
-- Frontend: `AuthForm.tsx` chama endpoints do backend; token armazenado no localStorage (chave: "ats_token")
-- Fluxo: auth → input → loading → result; token 401 redireciona para auth
-- Frontend tem 4 estados: auth → input → loading → result
-- Sessão persiste no navegador (Supabase client gerencia refresh token)
-- Login com Google planejado para futuro (depende de Google Cloud Console)
-- IMPORTANTE: Desativar confirmação de email no Supabase Dashboard para dev (Authentication → Settings)
+## Toggles
+- **section_toggle.py**: ativa/desativa analyzers individualmente (economiza tokens em dev). Em produção: todas True. Mesmo com skills=False, skills_analyzer roda internamente para o summary_analyzer
+- **paywall_toggle.py**: PAYWALL_ENABLED. False = resultado completo sem pagamento. True = salva no banco, retorna preview, paywall no frontend
+- **config.ts**: SHOW_ROADMAP. True = mostra widget de funcionalidades futuras
 
-## Sistema de Toggle de Seções
-- Arquivo: `backend/app/services/section_toggle.py`
-- Dicionário `ACTIVE_SECTIONS` controla quais analyzers são executados
-- Seções desativadas (False) retornam `{"disabled": true}` no endpoint — sem chamadas à Claude API
-- Usar durante desenvolvimento para economizar tokens: ative apenas a seção em que está trabalhando
-- Estado atual: contact=False, skills=True, dates=False, summary=False, impact_phrases=False
+## Segurança
+- Sanitizer: bloqueia SQL injection, script injection, prompt injection (PT/EN). Valida magic bytes de PDF/DOCX
+- Rate limiting: 60 req/min global, 10 análises/hora por usuário, 3 registros/hora por IP, 10 logins/hora por IP
+- Domínios de email bloqueados: example.local, mailinator.com, etc
+- Verificação de ownership em todos os endpoints que acessam dados
+- Campo active na tabela users para desativar contas
+- Headers: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection
 
-## Sistema de Toggle de Paywall
-- Arquivo: `backend/app/services/paywall_toggle.py`
-- `PAYWALL_ENABLED = False` → resultado completo retornado + `paywall_active: false` no JSON (fluxo atual preservado)
-- `PAYWALL_ENABLED = True` → salva resultado no banco, retorna apenas preview (score+status por seção); frontend mostra tela de paywall
-- O campo `paywall_active` (bool) é sempre retornado no JSON — frontend usa para decidir qual tela renderizar
-- Preview contém: `overall_score`, `user_area`, `job_area`, `sections` (cada seção com score e status apenas)
-- Resultado completo salvo em `analyses.result_json` (JSONB); desbloqueado via `analyses.paid = true`
-- Endpoint de consulta: `GET /api/analysis/{analysis_id}` (autenticado, verifica ownership)
+## Monetização
+- Mercado Pago Checkout Pro, PIX apenas, R$ 9,90/análise
+- Fluxo: análise grátis → resultado salvo em result_json → paywall → PIX → paid=true → resultado liberado
+- Credenciais de teste NÃO suportam PIX (usar produção)
+- Webhook /api/payment/webhook (público) recebe confirmação
+- Frontend: polling em /payment/success até paid=true
 
-## Roadmap
-- Fase 0: Stack ✅
-- Fase 1: Setup ✅
-- Fase 2: Upload & Parsing ✅
-- Fase 3.1: Seção Contato ✅
-- Fase 3.2: Seção Skills ✅
-- Fase 3.3: Seção Datas ✅
-- Fase 3.4: Seção Resumo Profissional ✅
-- Fase 3.5: Seção Frases de Impacto ✅
-- Fase 4: Dashboard ✅
-- Fase 5: Banco de Dados (Supabase) ✅
-- Fase 6: Autenticação & Cadastro ✅
-- Fase 7: Monetização ✅
-- Fase 8: Polish & Edge Cases ✅
-- Fase 9: Deploy 🚧
-  - Backend: nixpacks.toml criado para deploy no Railway/Render (python313, uvicorn, PORT dinâmica)
-  - Frontend: useSearchParams() envolvido em Suspense boundary (obrigatório no Next.js 14 em produção)
-  - Frontend: URLs do backend centralizadas em src/lib/config.ts via NEXT_PUBLIC_API_URL (usar backticks para interpolação, nunca aspas duplas)
-  - Backend: CORS atualizado com URL da Vercel (ats-analyzer-eosin.vercel.app)
+## Persistência de Sessão
+- Token JWT em localStorage (ats_token)
+- analysis_id em localStorage (ats_current_analysis) — recupera resultado ao recarregar
+- ats_pending_result — resultado pós-pagamento transitório
+- useRef initialized evita execução dupla do React Strict Mode
+- Estado inicial "loading_session" evita flash de tela de login
 
-## Regras de Trabalho do Claude Code
-
-### Planejamento
-- Entrar em plan mode para QUALQUER tarefa com 3+ passos ou decisões de arquitetura
-- Se algo der errado, PARE e replaneje imediatamente — não force uma solução quebrada
-- Escreva specs detalhadas antes de implementar
-
-### Verificação
-- NUNCA marque uma tarefa como completa sem provar que funciona
-- Rode testes, verifique logs, demonstre que está correto
-- Se pergunte: "Um desenvolvedor sênior aprovaria isso?"
-
-### Aprendizado
-- Após QUALQUER correção do usuário, registre o padrão em tasks/lessons.md
-- Escreva regras para si mesmo que previnam o mesmo erro
-- **SEMPRE consulte tasks/lessons.md no início de cada tarefa para evitar repetir erros já documentados**
-- Ruthlessly iterate on these lessons until mistake rate drops
-
-### Princípios
-- Simplicidade primeiro: faça cada mudança o mais simples possível
-- Sem preguiça: encontre causas raiz, sem correções temporárias
-- Impacto mínimo: mudanças devem tocar apenas o necessário
-- Não introduza bugs em código que já funciona
-
-### Correção de Bugs
-- Quando receber um bug: apenas corrija. Não peça ajuda desnecessária
-- Aponte logs, erros, testes falhando — e resolva
-- Zero troca de contexto necessária do usuário
-
-## Convenções Git
+## Regras de Trabalho
+- Entrar em plan mode para tarefas com 3+ passos
+- Se algo der errado, PARE e replaneje
+- NUNCA marque tarefa como completa sem provar que funciona
+- Simplicidade primeiro, impacto mínimo, sem correções temporárias
+- Após correção do usuário: registre em tasks/lessons.md
 - Usar conventional commits: feat:, fix:, docs:, refactor:
-- Manter mensagens com menos de 72 caracteres
-- Sempre rodar testes antes de commitar~
-
-## Lições Aprendidas
-**IMPORTANTE:** Sempre consulte tasks/lessons.md antes de iniciar qualquer tarefa. Este arquivo contém erros já cometidos e padrões aprendidos durante o desenvolvimento. Ignorá-lo resulta em retrabalho.
-
-## "Decisões de Arquitetura":
-
-
-### Análise Híbrida
-- Contato: regex para email/telefone/linkedin/portfolio, Claude API para nome/endereço/data nascimento
-- Skills: Claude API extrai skills, matching é regex com word boundary no texto completo
-- Datas: 100% regex, sem API
-- Resumo Profissional: regex para métricas, regex para skills (reutiliza lista do skills_analyzer), Claude API para verbos de impacto e contexto das métricas
-- Frases de Impacto: 100% Claude API
-
-### Score Geral
-- Pesos: Skills 30%, Resumo 25%, Datas 15%, Frases de Impacto 15%, Contato 15%
-- Calculado no frontend com Math.round()
-
-### Section Toggle
-- Arquivo backend/app/services/section_toggle.py controla quais seções rodam
-- Usado durante desenvolvimento para economizar tokens
-- Em produção: todas as seções = True
-- Mesmo com toggle False, skills_analyzer roda internamente para fornecer lista ao summary_analyzer
-
-### Skills
-- Match exato case-insensitive (sem sinônimos)
-- Busca em 2 etapas: lista extraída da IA + word boundary no texto completo
-- Separação required vs nice_to_have com peso 70/30
-- Divisão por zero tratada quando não há nice_to_have
-
-### Frases de Impacto
-- Score baseado em quantidade absoluta: 0=0%, 1=33%, 2=67%, 3+=100%
-- Status: >=3 green, 1-2 yellow, 0 red
-- Desduplicação entre Resumo e Experiência
-
-### Monetização
-- Mercado Pago Checkout Pro (PIX apenas)
-- Valor por análise: R$ 9,90
-- Fluxo: análise roda grátis → resultado fica no banco (result_json) → paywall bloqueia visualização → pagamento via PIX → resultado liberado
-- Paywall toggle: backend/app/services/paywall_toggle.py (PAYWALL_ENABLED = True/False)
-  - False: resultado completo retornado sem pagamento (modo teste/avaliação)
-  - True: retorna apenas preview, resultado completo só após pagamento
-- Credenciais de produção no backend (.env): PROD_MP_ACCESS_TOKEN
-- Credenciais de teste NÃO suportam PIX
-- Tabela analyses: campos paid (BOOLEAN) e result_json (JSONB) para controle
-- Webhook /api/payment/webhook recebe confirmação do Mercado Pago e marca análise como paga
-- Página /payment/success faz polling no status até confirmar pagamento
-- Resultado pago é salvo no localStorage (ats_pending_result) e lido ao carregar page.tsx
-
-### Segurança
-- Sanitizer (backend/app/services/sanitizer.py): valida texto de currículo e vaga antes de processar
-  - Bloqueia: SQL injection direto e clássico, script injection, prompt injection (PT e EN)
-  - Limite de texto: 50.000 caracteres
-  - Mensagem: "Informações maliciosas detectadas..."
-- Rate limiting via slowapi:
-  - Global: 60 req/min por IP
-  - /api/analyze: 10/hora por usuário
-  - /api/auth/register: 5/hora por IP
-  - /api/auth/login: 10/hora por IP
-- Headers de segurança: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection
-- Validação de UUID em endpoints que recebem IDs
-- Verificação de ownership: usuário só acessa suas próprias análises
-- Token JWT obrigatório em todos os endpoints exceto auth e health
-- MutableHeaders usa del em vez de pop para remover headers
-
-### Autenticação
-- Supabase Auth com email/senha
-- JWT token enviado no header Authorization: Bearer <token>
-- Endpoints protegidos: /api/analyze
-- Endpoints públicos: /api/auth/register, /api/auth/login, /health
-- Sessão persiste no navegador (Supabase client gerencia refresh token)
-- Frontend tem 4 estados: auth → input → loading → result
-- Login com Google planejado para futuro (depende de Google Cloud Console)
-
-### Banco de Dados (Supabase)
-- Tabela users: id, email, area, total_tokens_used, created_at, updated_at
-- Tabela analyses: id, user_id, job_area, tokens_used, created_at
-- Campo "score" removido da tabela analyses (irrelevante para persistência)
-- Tokens reais contabilizados de todas as chamadas Claude API (input + output tokens)
-- Cada analyzer retorna tokens_used no seu resultado
-- Backend usa service_role key (bypassa RLS)
-- Frontend usa anon key (apenas para auth)
-
-### Services (analyzers)
-- contact_analyzer.py — híbrido regex + Claude API
-- skills_analyzer.py — Claude API + regex matching
-- dates_analyzer.py — 100% regex
-- summary_analyzer.py — híbrido regex + Claude API
-- impact_analyzer.py — 100% Claude API
-- section_toggle.py — controle de seções ativas
-- parser.py — extração de texto de PDF/DOCX
-
-### Frontend
-- 3 telas: input → loading → result
-- Componentes de design baseados no padrão EvidenceCard
-- Cores: emerald (success), amber (warning), red (error)
-- RadialScore SVG para score geral
-- TabBar em pill style para navegação entre seções
-
-## "Estrutura do Backend":
-
-### Services (analyzers)
-- contact_analyzer.py — híbrido regex + Claude API
-- skills_analyzer.py — Claude API + regex matching
-- dates_analyzer.py — 100% regex
-- summary_analyzer.py — híbrido regex + Claude API
-- impact_analyzer.py — 100% Claude API
-- section_toggle.py — controle de seções ativas
-- paywall_toggle.py — toggle de ativação do paywall
-- parser.py — extração de texto de PDF/DOCX
-- database.py — funções de persistência no Supabase
-
-### Auth & Middleware
-- app/api/auth.py — endpoints de register e login
-- app/middleware/auth_middleware.py — verificação JWT
-
-### Payment
-- app/api/payment.py — criação de preferência MP, webhook, status de pagamento
-
-### Frontend
-- 3 telas: input → loading → result
-- Componentes de design baseados no padrão EvidenceCard
-- Cores: emerald (success), amber (warning), red (error)
-- RadialScore SVG para score geral
-- TabBar em pill style para navegação entre seções
-- src/app/payment/success/page.tsx — tela de confirmação pós-pagamento com polling
-- src/app/payment/failure/page.tsx — tela de falha no pagamento
-- Componente PaywallView — tela com blur, cadeado e CTA de pagamento
