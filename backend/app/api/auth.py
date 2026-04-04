@@ -85,7 +85,11 @@ def login(request: Request, body: AuthRequest):
         logger.warning("Failed login attempt for email: %s (no session)", body.email)
         raise HTTPException(status_code=401, detail="Email ou senha incorretos.")
 
-    get_or_create_user(response.user.email, auth_user_id=response.user.id)
+    user = get_or_create_user(response.user.email, auth_user_id=response.user.id)
+    if not user.get("active", True):
+        logger.warning("Login blocked — inactive account: %s", response.user.email)
+        raise HTTPException(status_code=403, detail="Conta desativada. Entre em contato com o suporte.")
+
     logger.info("Successful login: %s", response.user.email)
 
     return {

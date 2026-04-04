@@ -17,19 +17,21 @@ export function AuthForm({ onAuth }: AuthFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [deactivated, setDeactivated] = useState(false);
   const [loading, setLoading] = useState(false);
 
   function validate(): string {
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
       return "Digite um email válido.";
-    if (password.length < 6)
-      return "A senha deve ter no mínimo 6 caracteres.";
+    if (password.length < 8)
+      return "A senha deve ter no mínimo 8 caracteres.";
     return "";
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setDeactivated(false);
     const validationError = validate();
     if (validationError) { setError(validationError); return; }
 
@@ -42,6 +44,10 @@ export function AuthForm({ onAuth }: AuthFormProps) {
       });
 
       const data = await res.json();
+      if (res.status === 403) {
+        setDeactivated(true);
+        return;
+      }
       if (!res.ok) {
         setError(data.detail || "Erro ao autenticar. Tente novamente.");
         return;
@@ -90,7 +96,7 @@ export function AuthForm({ onAuth }: AuthFormProps) {
                 <label className="text-sm font-medium text-gray-700">Senha</label>
                 <Input
                   type="password"
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder="Mínimo 8 caracteres"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete={mode === "login" ? "current-password" : "new-password"}
@@ -98,7 +104,15 @@ export function AuthForm({ onAuth }: AuthFormProps) {
                 />
               </div>
 
-              {error && (
+              {deactivated && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+                  <p className="text-sm font-medium text-red-800">
+                    Conta desativada. Entre em contato com o suporte.
+                  </p>
+                </div>
+              )}
+
+              {error && !deactivated && (
                 <p className="text-sm text-red-500">{error}</p>
               )}
 

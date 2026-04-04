@@ -64,6 +64,18 @@ def get_analysis(analysis_id: str) -> dict | None:
     return result.data[0]
 
 
+def deactivate_user(user_id: str) -> dict:
+    db = _client()
+    result = db.table("users").update({"active": False}).eq("id", user_id).execute()
+    return result.data[0]
+
+
+def activate_user(user_id: str) -> dict:
+    db = _client()
+    result = db.table("users").update({"active": True}).eq("id", user_id).execute()
+    return result.data[0]
+
+
 def mark_analysis_paid(analysis_id: str) -> dict:
     db = _client()
     result = db.table("analyses").update(
