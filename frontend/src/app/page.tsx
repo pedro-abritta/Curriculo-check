@@ -20,7 +20,7 @@ import { API_URL } from "@/lib/config";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type AppState = "auth" | "input" | "loading" | "result";
+type AppState = "loading_session" | "auth" | "input" | "loading" | "result";
 type BackendStatus = "green" | "yellow" | "red";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -807,7 +807,7 @@ function ResultView({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function Home() {
-  const [appState, setAppState] = useState<AppState>("auth");
+  const [appState, setAppState] = useState<AppState>("loading_session");
   const [token, setToken] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
   const [analysisTime, setAnalysisTime] = useState("");
@@ -834,8 +834,35 @@ export default function Home() {
         setAppState("result");
         console.log(">>> PAGE INIT: state set to result");
       } else {
-        setAppState("input");
-        console.log(">>> PAGE INIT: state set to input");
+        const currentAnalysisId = localStorage.getItem("ats_current_analysis");
+        console.log(">>> PAGE INIT: current_analysis exists:", !!currentAnalysisId);
+        if (currentAnalysisId) {
+          fetch(`${API_URL}/api/analysis/${currentAnalysisId}`, {
+            headers: { Authorization: `Bearer ${stored}` },
+          })
+            .then((res) => {
+              if (!res.ok) throw new Error("not found");
+              return res.json();
+            })
+            .then((data) => {
+              if (data.paywall_active === false) {
+                console.log(">>> PAGE INIT: restored analysis from server");
+                setResult(data);
+                setAppState("result");
+              } else {
+                localStorage.removeItem("ats_current_analysis");
+                setAppState("input");
+              }
+            })
+            .catch(() => {
+              console.log(">>> PAGE INIT: analysis not found, clearing");
+              localStorage.removeItem("ats_current_analysis");
+              setAppState("input");
+            });
+        } else {
+          setAppState("input");
+          console.log(">>> PAGE INIT: state set to input");
+        }
       }
     }
   }, []);
@@ -848,6 +875,7 @@ export default function Home() {
 
   function handleLogout() {
     localStorage.removeItem("ats_token");
+    localStorage.removeItem("ats_current_analysis");
     setToken(null);
     setResult(null);
     setAnalysisTime("");
@@ -878,6 +906,7 @@ export default function Home() {
       if (!res.ok) throw new Error("Erro na análise");
 
       const data = await res.json();
+      if (data.analysis_id) localStorage.setItem("ats_current_analysis", data.analysis_id);
       setAnalysisTime(new Date().toLocaleString("pt-BR"));
       setResult(data);
       setAppState("result");
@@ -887,10 +916,13 @@ export default function Home() {
   }
 
   function handleReset() {
+    localStorage.removeItem("ats_current_analysis");
     setResult(null);
     setAnalysisTime("");
     setAppState("input");
   }
+
+  if (appState === "loading_session") return <main className="min-h-screen bg-white" />;
 
   return (
     <>
