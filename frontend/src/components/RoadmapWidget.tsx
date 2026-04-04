@@ -109,16 +109,18 @@ export function RoadmapWidget() {
         </p>
       </div>
 
-      {/* Floating trigger button */}
-      <div
-        className="fixed left-0 top-1/2 -translate-y-1/2 z-50 cursor-pointer"
-        onClick={() => setOpen(true)}
-      >
-        <div className="flex flex-col items-center gap-1.5 bg-white border border-gray-200 shadow-md hover:shadow-lg transition-shadow rounded-r-xl px-2.5 py-4 select-none">
-          <span className="text-base leading-none">🚀</span>
-          Em breve
+      {/* Floating trigger button — hidden when panel is open */}
+      {!open && (
+        <div
+          className="fixed left-0 top-1/2 -translate-y-1/2 z-50 cursor-pointer"
+          onClick={() => setOpen(true)}
+        >
+          <div className="flex flex-col items-center gap-1.5 bg-white border border-gray-200 shadow-md hover:shadow-lg transition-shadow rounded-r-xl px-2.5 py-4 select-none">
+            <span className="text-base leading-none">🚀</span>
+            Em breve
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }

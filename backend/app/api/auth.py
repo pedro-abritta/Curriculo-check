@@ -9,6 +9,7 @@ from supabase import create_client
 
 from app.limiter import limiter
 from app.services.database import get_or_create_user
+from app.services.sanitizer import validate_email_domain
 
 logger = logging.getLogger("security")
 
@@ -27,12 +28,19 @@ class AuthRequest(BaseModel):
 
 
 @router.post("/register")
-@limiter.limit("5/hour")
+@limiter.limit("3/hour")
 def register(request: Request, body: AuthRequest):
     if not _EMAIL_RE.match(body.email):
+        logger.warning("Register blocked — invalid email format: %s", body.email)
         raise HTTPException(status_code=400, detail="Formato de email inválido.")
-    if len(body.password) < 6:
-        raise HTTPException(status_code=400, detail="A senha deve ter no mínimo 6 caracteres.")
+
+    domain_ok, domain_err = validate_email_domain(body.email)
+    if not domain_ok:
+        logger.warning("Register blocked — disallowed domain: %s", body.email)
+        raise HTTPException(status_code=400, detail=domain_err)
+
+    if len(body.password) < 8:
+        raise HTTPException(status_code=400, detail="A senha deve ter no mínimo 8 caracteres.")
 
     client = _client()
     try:
