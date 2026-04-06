@@ -3,27 +3,6 @@ import re
 
 logger = logging.getLogger("security")
 
-BLOCKED_DOMAINS = {
-    "example.local", "example.com", "test.com", "mailinator.com",
-    "tempmail.com", "guerrillamail.com", "throwaway.email", "yopmail.com",
-    "sharklasers.com", "guerrillamailblock.com", "grr.la", "discard.email",
-}
-
-
-def validate_email_domain(email: str) -> tuple[bool, str]:
-    """
-    Returns (True, "") if the email domain is allowed.
-    Returns (False, error_message) if blocked or malformed.
-    """
-    if "@" not in email:
-        return False, "Formato de email inválido."
-    domain = email.rsplit("@", 1)[1].lower()
-    if "." not in domain:
-        return False, "Formato de email inválido."
-    if domain in BLOCKED_DOMAINS:
-        return False, "Domínio de email não permitido."
-    return True, ""
-
 MAX_TEXT_SIZE = 50_000
 
 _CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")

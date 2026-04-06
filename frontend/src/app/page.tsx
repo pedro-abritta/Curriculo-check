@@ -17,6 +17,7 @@ import { AuthForm } from "@/components/AuthForm";
 import { FeedbackWidget } from "@/components/FeedbackWidget";
 import { RoadmapWidget } from "@/components/RoadmapWidget";
 import { API_URL } from "@/lib/config";
+import { supabase } from "@/lib/supabase";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -814,68 +815,85 @@ export default function Home() {
   const [inputError, setInputError] = useState("");
   const initialized = useRef(false);
 
-  // Restaurar sessão e resultado pendente do localStorage ao montar
+  async function restoreSession(accessToken: string, email: string) {
+    localStorage.setItem("ats_token", accessToken);
+    setToken(accessToken);
+    // Garante que o usuário existe na tabela users
+    await fetch(`${API_URL}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    const pending = localStorage.getItem("ats_pending_result");
+    if (pending) {
+      const parsed = JSON.parse(pending);
+      localStorage.removeItem("ats_pending_result");
+      setResult(parsed);
+      setAppState("result");
+      return;
+    }
+    const currentAnalysisId = localStorage.getItem("ats_current_analysis");
+    if (currentAnalysisId) {
+      fetch(`${API_URL}/api/analysis/${currentAnalysisId}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error("not found");
+          return res.json();
+        })
+        .then((data) => {
+          if (data.paywall_active === false) {
+            setResult(data);
+            setAppState("result");
+          } else {
+            localStorage.removeItem("ats_current_analysis");
+            setAppState("input");
+          }
+        })
+        .catch(() => {
+          localStorage.removeItem("ats_current_analysis");
+          setAppState("input");
+        });
+    } else {
+      setAppState("input");
+    }
+  }
+
+  // Restaurar sessão ao montar
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
 
-    const stored = localStorage.getItem("ats_token");
-    console.log(">>> PAGE INIT: token exists:", !!stored);
-    if (stored) {
-      setToken(stored);
-      const pending = localStorage.getItem("ats_pending_result");
-      console.log(">>> PAGE INIT: pending exists:", !!pending);
-      if (pending) {
-        const parsed = JSON.parse(pending);
-        console.log(">>> PAGE INIT: parsed keys:", Object.keys(parsed));
-        console.log(">>> PAGE INIT: paywall_active:", parsed.paywall_active);
-        localStorage.removeItem("ats_pending_result");
-        setResult(parsed);
-        setAppState("result");
-        console.log(">>> PAGE INIT: state set to result");
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        restoreSession(session.access_token, session.user.email!);
       } else {
-        const currentAnalysisId = localStorage.getItem("ats_current_analysis");
-        console.log(">>> PAGE INIT: current_analysis exists:", !!currentAnalysisId);
-        if (currentAnalysisId) {
-          fetch(`${API_URL}/api/analysis/${currentAnalysisId}`, {
-            headers: { Authorization: `Bearer ${stored}` },
-          })
-            .then((res) => {
-              if (!res.ok) throw new Error("not found");
-              return res.json();
-            })
-            .then((data) => {
-              if (data.paywall_active === false) {
-                console.log(">>> PAGE INIT: restored analysis from server");
-                setResult(data);
-                setAppState("result");
-              } else {
-                localStorage.removeItem("ats_current_analysis");
-                setAppState("input");
-              }
-            })
-            .catch(() => {
-              console.log(">>> PAGE INIT: analysis not found, clearing");
-              localStorage.removeItem("ats_current_analysis");
-              setAppState("input");
-            });
-        } else {
-          setAppState("input");
-          console.log(">>> PAGE INIT: state set to input");
+        const stored = localStorage.getItem("ats_token");
+        if (stored) {
+          // Token legado sem sessão Supabase ativa — limpa e pede login
+          localStorage.removeItem("ats_token");
+          localStorage.removeItem("ats_current_analysis");
         }
+        setAppState("auth");
       }
-    } else {
-      setAppState("auth");
-    }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        restoreSession(session.access_token, session.user.email!);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function handleAuth(newToken: string) {
-    localStorage.setItem("ats_token", newToken);
-    setToken(newToken);
-    setAppState("input");
+  function handleAuth(_token: string) {
+    // Não utilizado com OAuth — mantido para compatibilidade de tipo com AuthForm
   }
 
-  function handleLogout() {
+  async function handleLogout() {
+    await supabase.auth.signOut();
     localStorage.removeItem("ats_token");
     localStorage.removeItem("ats_current_analysis");
     setToken(null);
