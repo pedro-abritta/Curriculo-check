@@ -7,28 +7,21 @@ import { SHOW_ROADMAP } from "@/lib/config";
 const ITEMS = [
   {
     badge: "Planejado",
-    badgeClass: "bg-amber-100 text-amber-800",
+    badgeClass: "bg-indigo-100 text-indigo-800",
     title: "Validação inteligente de currículo",
     description:
-      "Identificar automaticamente se o arquivo enviado é realmente um currículo ou um documento aleatório.",
-  },
-  {
-    badge: "Planejado",
-    badgeClass: "bg-amber-100 text-amber-800",
-    title: "Validação de descrição da vaga",
-    description:
-      "Verificar se o texto inserido é uma descrição de vaga real ou apenas um texto qualquer.",
+      "Identificar automaticamente se o arquivo enviado é realmente um currículo ou um documento aleatório. (já faz análise de prompt injection)",
   },
   {
     badge: "Planejado",
     badgeClass: "bg-indigo-100 text-indigo-800",
-    title: "Recuperação de senha",
+    title: "Validação de descrição da vaga",
     description:
-      "Opção de 'Esqueci minha senha' para redefinir sua senha com segurança.",
+      "Verificar se o texto inserido é uma descrição de vaga real ou apenas um texto qualquer. (já faz análise de prompt injection)",
   },
   {
     badge: "Análise",
-    badgeClass: "bg-indigo-100 text-indigo-800",
+    badgeClass: "bg-amber-100 text-amber-800",
     title: "Análise de currículo independente",
     description:
       "Possibilidade de analisar apenas o currículo, sem necessidade de uma descrição de vaga para comparação.",

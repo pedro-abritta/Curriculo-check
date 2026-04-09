@@ -18,6 +18,7 @@ import { FeedbackWidget } from "@/components/FeedbackWidget";
 import { RoadmapWidget } from "@/components/RoadmapWidget";
 import { API_URL } from "@/lib/config";
 import { supabase } from "@/lib/supabase";
+import { AnalysisLoadingSkeleton } from "@/components/ui/analysis-loading-skeleton";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,16 +31,6 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const VALID_TYPES = [
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-];
-
-const LOADING_MESSAGES = [
-  "Extraindo dados do currículo...",
-  "Analisando informações de contato...",
-  "Comparando skills com a vaga...",
-  "Verificando formatação de datas...",
-  "Avaliando resumo profissional...",
-  "Identificando frases de impacto...",
-  "Calculando score final...",
 ];
 
 const CONTACT_FIELDS = [
@@ -232,43 +223,7 @@ function InputView({
 // ─── Loading View ─────────────────────────────────────────────────────────────
 
 function LoadingView() {
-  const [msgIndex, setMsgIndex] = useState(0);
-  const [visible, setVisible] = useState(true);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setVisible(false);
-      setTimeout(() => {
-        setMsgIndex((i) => (i + 1) % LOADING_MESSAGES.length);
-        setVisible(true);
-      }, 300);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
-  return (
-    <main className="min-h-screen flex flex-col items-center justify-center bg-white gap-8">
-      <svg
-        className="animate-spin h-14 w-14 text-indigo-600"
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-      >
-        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-        <path
-          className="opacity-75"
-          fill="currentColor"
-          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-        />
-      </svg>
-      <p
-        className="text-gray-600 text-lg font-medium transition-opacity duration-300"
-        style={{ opacity: visible ? 1 : 0 }}
-      >
-        {LOADING_MESSAGES[msgIndex]}
-      </p>
-    </main>
-  );
+  return <AnalysisLoadingSkeleton />;
 }
 
 // ─── Tab: Skills ──────────────────────────────────────────────────────────────
