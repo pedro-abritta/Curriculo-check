@@ -70,7 +70,7 @@ src/
 5. **Frases de Impacto**: score baseado em quantidade (0=0%, 1=33%, 2=67%, 3+=100%). Desduplicação entre Resumo e Experiência
 
 ## Score Geral
-Skills 30% + Resumo 25% + Datas 15% + Impacto 15% + Contato 15% (calculado no frontend)
+Skills 40% + Resumo 25% + Datas 10% + Impacto 15% + Contato 10% (calculado no frontend)
 
 ## Banco de Dados (Supabase)
 ### Tabelas

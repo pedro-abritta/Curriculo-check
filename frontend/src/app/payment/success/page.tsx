@@ -16,7 +16,7 @@ function PaymentSuccessContent() {
 
     const token = localStorage.getItem("ats_token");
     if (!token) {
-      window.location.href = "/";
+      window.location.href = "/dashboard";
       return;
     }
 
@@ -41,12 +41,12 @@ function PaymentSuccessContent() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       console.log(">>> 5. Result response:", resultRes.status);
-      if (!resultRes.ok) { console.log(">>> Result falhou, redirecionando"); window.location.href = "/"; return; }
+      if (!resultRes.ok) { console.log(">>> Result falhou, redirecionando"); window.location.href = "/dashboard"; return; }
       const resultData = await resultRes.json();
       console.log(">>> 6. Result data keys:", Object.keys(resultData));
       localStorage.setItem("ats_pending_result", JSON.stringify(resultData));
       console.log(">>> 7. Salvo no localStorage, redirecionando...");
-      window.location.href = "/";
+      window.location.href = "/dashboard";
     }
 
     intervalRef.current = setInterval(checkAndRedirect, 3000);
@@ -76,7 +76,7 @@ function PaymentSuccessContent() {
           Seu pagamento está sendo processado. Tente novamente em alguns minutos.
         </p>
         <button
-          onClick={() => window.location.href = "/"}
+          onClick={() => window.location.href = "/dashboard"}
           className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl py-2.5 px-6 transition-colors text-sm"
         >
           Voltar ao início

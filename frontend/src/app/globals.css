@@ -2,6 +2,8 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+@custom-variant dark (&:is(.dark *));
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -26,6 +28,30 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --font-sans: var(--font-sans);
+  --animate-appear-zoom: appear-zoom 0.8s ease-out forwards;
+  --animate-appear: appear 0.5s ease-out forwards;
+  --color-brand-foreground: var(----brand-foreground);
+  --color-brand: var(----brand);
+  @keyframes appear-zoom {
+  0% {
+    opacity: 0;
+    transform: scale(0.98);
+    }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    }
+  }
+  @keyframes appear {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+    }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    }
+  }
 }
 
 @layer utilities {
@@ -115,4 +141,14 @@
   html {
     @apply font-sans;
   }
+}
+
+:root {
+  --brand: hsl(239 84% 67%);
+  --brand-foreground: hsl(239 84% 77%);
+}
+
+.dark {
+  --brand: hsl(239 84% 67%);
+  --brand-foreground: hsl(239 84% 77%);
 }
