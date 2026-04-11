@@ -9,7 +9,7 @@ import anthropic
 # ---------------------------------------------------------------------------
 
 _SUMMARY_HEADERS: set[str] = {
-    # Português
+    # ── Português ──────────────────────────────────────────────────────────
     "resumo", "resumo profissional",
     "sobre", "sobre mim",
     "perfil", "perfil profissional",
@@ -18,22 +18,62 @@ _SUMMARY_HEADERS: set[str] = {
     "síntese", "síntese profissional",
     "qualificações",
     "sumário", "sumário profissional",
-    # Inglês
+    # ── Inglês ─────────────────────────────────────────────────────────────
     "summary", "professional summary", "career summary", "executive summary",
     "about", "about me",
     "profile", "professional profile",
     "objective", "career objective",
     "overview",
     "personal statement",
+    # ── Grudados (sem espaço) ───────────────────────────────────────────────
+    "professionalsummary", "resumoprofissional", "sobremim",
+    "aboutme", "careersummary",
+    # ── Espaçados (letra por letra, comparação com whitespace normalizado) ──
+    # "PROFESSIONAL SUMMARY", "RESUMO PROFISSIONAL", "SOBRE MIM",
+    # "ABOUT ME", "CAREER SUMMARY"
+    "p r o f e s s i o n a l s u m m a r y",
+    "r e s u m o p r o f i s s i o n a l",
+    "s o b r e m i m",
+    "a b o u t m e",
+    "c a r e e r s u m m a r y",
 }
 
 # Todos os títulos de seção conhecidos — usados para detectar o fim do resumo
 _ALL_SECTION_HEADERS: set[str] = _SUMMARY_HEADERS | {
+    # ── Experiência ────────────────────────────────────────────────────────
     "experiência", "experiências", "experience", "experiences",
+    "professionalexperience", "experienciaprofissional", "workexperience",
+    "p r o f e s s i o n a l e x p e r i e n c e",
+    "e x p e r i ê n c i a p r o f i s s i o n a l",
+    "w o r k e x p e r i e n c e",
+    # ── Formação / Educação ────────────────────────────────────────────────
     "formação", "formação acadêmica", "educação", "education",
+    "formacao", "formacaoacademica", "academicbackground",
+    "e d u c a t i o n",
+    "f o r m a ç ã o",
+    "f o r m a ç ã o a c a d ê m i c a",
+    # ── Skills / Habilidades ───────────────────────────────────────────────
     "habilidades", "habilidades técnicas", "skills", "competências", "competencies",
+    "keyskills", "technicalskills", "competencias", "corecompetencies",
+    "k e y s k i l l s",
+    "h a b i l i d a d e s",
+    "t e c h n i c a l s k i l l s",
+    "c o m p e t ê n c i a s",
+    "c o r e c o m p e t e n c i e s",
+    # ── Certificações ──────────────────────────────────────────────────────
     "certificações", "certificados", "certifications", "certificates",
+    "certificacoes", "certificacoesecursos",
+    "c e r t i f i c a t i o n s",
+    "c e r t i f i c a ç õ e s",
+    # ── Idiomas ────────────────────────────────────────────────────────────
     "idiomas", "línguas", "languages",
+    "l a n g u a g e s",
+    "i d i o m a s",
+    # ── Portfólio ──────────────────────────────────────────────────────────
+    "portfolio", "portfólio",
+    "p o r t f o l i o",
+    "p o r t f ó l i o",
+    # ── Demais seções ──────────────────────────────────────────────────────
     "projetos", "projects",
     "conquistas", "achievements",
     "contato", "contact",
@@ -80,7 +120,7 @@ def _fallback_first_paragraph(lines: list[str]) -> str | None:
         if any(_CONTACT_LINE_RE.search(ln) for ln in block):
             continue
         # Rejeita blocos que sejam apenas um título de seção conhecido
-        if any(ln.rstrip(':').lower() in _ALL_SECTION_HEADERS for ln in block):
+        if any(re.sub(r'\s+', ' ', ln.rstrip(':')).lower() in _ALL_SECTION_HEADERS for ln in block):
             continue
         text = re.sub(r'\s+', ' ', ' '.join(block)).strip()
         # Parágrafo descritivo: pelo menos 10 palavras
@@ -96,7 +136,7 @@ def _extract_summary_text(resume_text: str) -> str | None:
 
     summary_start: int | None = None
     for i, line in enumerate(lines):
-        normalized = line.strip().rstrip(':').lower()
+        normalized = re.sub(r'\s+', ' ', line.strip().rstrip(':')).lower()
         if normalized in _SUMMARY_HEADERS:
             summary_start = i + 1
             break
@@ -107,7 +147,7 @@ def _extract_summary_text(resume_text: str) -> str | None:
 
     summary_lines: list[str] = []
     for line in lines[summary_start:]:
-        normalized = line.strip().rstrip(':').lower()
+        normalized = re.sub(r'\s+', ' ', line.strip().rstrip(':')).lower()
         # Para na próxima seção (linha não-vazia que é um título conhecido)
         if normalized and normalized in _ALL_SECTION_HEADERS:
             break
@@ -128,8 +168,10 @@ _METRIC_RE = re.compile(
     r'|\d+\s*%'                           # inteiro %: 80%
     r'|R\$\s*[\d\.]+(?:,\d+)?'           # BRL: R$1.000,00
     r'|\$\s*[\d\.]+(?:[MKBmkb])?'        # USD: $50M
-    r'|\d+\s*anos?'                       # 4 anos
+    r'|\d+\+?\s*anos?(?:\s+de\s+\w+)?'   # 4 anos / 7+ anos / 7+ anos de experiência
+    r'|\d+\+?\s*years?(?:\s+of\s+\w+)?'  # 7 years / 7+ years / 7+ years of experience
     r'|\d+\s*meses?'                      # 6 meses
+    r'|\d+\s*months?'                     # 6 months
     r'|\d+\s*horas?'                      # 10 horas
     r'|\d+\s*semanas?'                    # 3 semanas
     r')',

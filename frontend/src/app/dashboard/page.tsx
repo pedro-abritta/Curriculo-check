@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { X, Upload, LogOut } from "lucide-react";
+import { X, Upload, LogOut, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -81,6 +81,80 @@ function isMissingSkill(skill: string, missingList: string[]): boolean {
 
 // ─── Input View ───────────────────────────────────────────────────────────────
 
+// ─── Validation Error Modal ───────────────────────────────────────────────────
+
+function ValidationErrorModal({
+  message,
+  isReadableError,
+  onClose,
+}: {
+  message: string;
+  isReadableError: boolean;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div
+        className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md"
+        style={{ animation: "slideUpFade 0.2s ease-out" }}
+      >
+        {/* Header */}
+        <div className="flex items-start gap-4 px-6 pt-6 pb-4">
+          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+            <AlertTriangle className="h-5 w-5 text-amber-600" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-base font-semibold text-gray-900">Problema com seu currículo</h2>
+            <p className="mt-1 text-sm text-gray-600">{message}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors mt-0.5"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Tips for formatting errors */}
+        {isReadableError && (
+          <div className="mx-6 mb-4 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 space-y-1.5">
+            <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Dicas para corrigir</p>
+            <ul className="space-y-1">
+              {[
+                "Use um modelo de coluna única",
+                "Evite imagens ou caixas de texto sobre o conteúdo",
+                "Prefira fontes padrão (Arial, Calibri, Times New Roman)",
+                "Exporte o arquivo em PDF a partir do Word ou Google Docs",
+              ].map((tip) => (
+                <li key={tip} className="flex items-start gap-2 text-xs text-amber-700">
+                  <span className="mt-0.5 flex-shrink-0">•</span>
+                  {tip}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Action */}
+        <div className="px-6 pb-6">
+          <button
+            onClick={onClose}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl py-2.5 transition-colors"
+          >
+            Enviar outro arquivo
+          </button>
+        </div>
+      </div>
+      <style>{`
+        @keyframes slideUpFade {
+          from { opacity: 0; transform: translateY(12px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 function InputView({
   onSubmit,
   onLogout,
@@ -120,8 +194,19 @@ function InputView({
 
   const canSubmit = !!file && jobText.trim().length > 0;
 
+  const isReadableError = (apiError ?? "").includes("problemas de formatação");
+  const isValidationError =
+    isReadableError || (apiError ?? "").includes("não parece ser um currículo");
+
   return (
     <main className="min-h-screen flex items-center justify-center bg-white px-4 py-12">
+      {isValidationError && (
+        <ValidationErrorModal
+          message={apiError!}
+          isReadableError={isReadableError}
+          onClose={() => onClearApiError?.()}
+        />
+      )}
       <div className="w-full max-w-2xl flex flex-col gap-8">
         <div className="flex items-start justify-between">
           <div>
@@ -205,7 +290,7 @@ function InputView({
           </CardContent>
         </Card>
 
-        {apiError && (
+        {apiError && !isValidationError && (
           <div className="rounded-xl border border-red-200 bg-red-50 p-4">
             <p className="text-sm font-medium text-red-800">{apiError}</p>
           </div>
@@ -705,6 +790,9 @@ function ResultView({
   token: string | null;
 }) {
   const [activeTab, setActiveTab] = useState<TabId>("skills");
+  const [showWarnings, setShowWarnings] = useState(true);
+
+  const warnings: string[] = result.formatting_warnings ?? [];
 
   const skillsScore = getScore(result.skills);
   const summaryScore = getScore(result.summary);
@@ -748,6 +836,25 @@ function ResultView({
             <h1 className="text-lg font-bold text-gray-900">Health Check do Currículo</h1>
           </div>
         </div>
+
+        {/* Formatting warnings banner */}
+        {warnings.length > 0 && showWarnings && (
+          <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 space-y-1">
+              <p className="text-xs font-semibold text-amber-800">Aviso de Formatação</p>
+              {warnings.map((w, i) => (
+                <p key={i} className="text-xs text-amber-700">{w}</p>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowWarnings(false)}
+              className="flex-shrink-0 text-amber-400 hover:text-amber-600 transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* Score + section pills */}
         <div className="flex flex-col items-center gap-4 bg-white rounded-2xl border border-gray-200 shadow-sm px-6 py-8">
@@ -905,9 +1012,17 @@ export default function DashboardPage() {
       });
 
       if (res.status === 401) { handleLogout(); return; }
-      if (res.status === 400 || res.status === 429) {
+      if (res.status === 400 || res.status === 422 || res.status === 429) {
         const data = await res.json();
-        setInputError(data.detail || "Erro na análise. Tente novamente.");
+        // detail pode ser string (HTTPException) ou array (validação Pydantic)
+        const detail = data.detail;
+        const message =
+          typeof detail === "string"
+            ? detail
+            : Array.isArray(detail) && detail[0]?.msg
+            ? detail[0].msg
+            : "Erro na análise. Tente novamente.";
+        setInputError(message);
         setAppState("input");
         return;
       }

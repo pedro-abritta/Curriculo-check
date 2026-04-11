@@ -1,4 +1,5 @@
 import logging
+import re
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 
@@ -11,12 +12,39 @@ from app.services.dates_analyzer import analyze_dates
 from app.services.impact_analyzer import analyze_impact
 from app.services.parser import extract_text_from_docx, extract_text_from_pdf
 from app.services.paywall_toggle import PAYWALL_ENABLED
+from app.services.resume_validator import validate_resume
 from app.services.sanitizer import validate_text
 from app.services.section_toggle import ACTIVE_SECTIONS
 from app.services.skills_analyzer import analyze_skills
 from app.services.summary_analyzer import analyze_summary
 
 logger = logging.getLogger("security")
+
+# ---------------------------------------------------------------------------
+# Detecção de formatação irregular (títulos/nome com espaços entre letras)
+# ---------------------------------------------------------------------------
+
+# Detecta sequências de letras maiúsculas isoladas separadas por espaço(s)
+# Ex: "P R O F E S S I O N A L  S U M M A R Y"
+_SPACED_TITLE_RE = re.compile(r'\b[A-ZÀ-Ú](?:[ \t]+[A-ZÀ-Ú]){2,}\b')
+
+
+def _has_spaced_titles(text: str) -> bool:
+    """Retorna True se o texto contém títulos de seção com letras espaçadas."""
+    return bool(_SPACED_TITLE_RE.search(text))
+
+
+def _has_spaced_name(resume_text: str) -> bool:
+    """Retorna True se a primeira linha não-vazia contém muitas letras isoladas (nome espaçado)."""
+    for line in resume_text.split('\n'):
+        stripped = line.strip()
+        if stripped:
+            # Letra isolada = não adjacente a outra letra
+            isolated = re.findall(
+                r'(?<![A-Za-zÀ-ú])[A-Za-zÀ-ú](?![A-Za-zÀ-ú])', stripped
+            )
+            return len(isolated) >= 4
+    return False
 
 router = APIRouter()
 
@@ -140,6 +168,19 @@ async def analyze(
             detail="Nenhum texto encontrado no arquivo. O documento pode estar vazio ou protegido.",
         )
 
+    # Detecção de formatação irregular (texto original mantido intacto)
+    formatting_warnings: list[str] = []
+    if _has_spaced_titles(resume_text):
+        formatting_warnings.append(
+            "Detectamos que seu currículo usa títulos com espaços entre letras "
+            "(ex: 'P R O F E S S I O N A L'). Isso pode dificultar a leitura por "
+            "sistemas ATS reais. Recomendamos usar formatação padrão."
+        )
+    if _has_spaced_name(resume_text):
+        formatting_warnings.append(
+            "O nome no currículo pode estar com formatação irregular. Verifique se está correto."
+        )
+
     # Sanitizar textos antes de qualquer processamento
     print(f">>> SANITIZER: validando resume_text ({len(resume_text)} chars)")
     is_safe, error_msg = validate_text(resume_text)
@@ -155,6 +196,19 @@ async def analyze(
     if not is_safe:
         logger.warning("Malicious content detected in job description")
         raise HTTPException(status_code=400, detail=error_msg)
+
+    # Pré-validação: verificar se o arquivo é um currículo legível
+    validation = validate_resume(resume_text)
+    if not validation["is_resume"]:
+        raise HTTPException(
+            status_code=400,
+            detail="O arquivo enviado não parece ser um currículo. Envie um currículo em formato PDF ou DOCX.",
+        )
+    if not validation["is_readable"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Seu currículo parece ter problemas de formatação (colunas, imagens sobre texto, etc.) que dificultam a leitura. Recomendamos usar um modelo de coluna única sem elementos gráficos.",
+        )
 
     # Seções de análise (controladas por ACTIVE_SECTIONS)
     contact = analyze_contact(
@@ -201,6 +255,7 @@ async def analyze(
         "user_area": areas["user_area"],
         "job_area": areas["job_area"],
         "total_tokens_used": total_tokens,
+        "formatting_warnings": formatting_warnings,
         "contact": contact,
         "skills": skills,
         "dates": dates,
