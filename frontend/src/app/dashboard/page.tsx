@@ -13,7 +13,6 @@ import {
   EvidenceBlock,
   type EvidenceStatus,
 } from "@/components/evidence-card";
-import { FeedbackWidget } from "@/components/FeedbackWidget";
 import { RoadmapWidget } from "@/components/RoadmapWidget";
 import { API_URL } from "@/lib/config";
 import { supabase } from "@/lib/supabase";
@@ -752,9 +751,6 @@ function ResultView({
 
       </div>
 
-      {result.analysis_id && (
-        <FeedbackWidget analysisId={result.analysis_id} token={token} />
-      )}
     </main>
   );
 }

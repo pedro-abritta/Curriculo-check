@@ -1,5 +1,6 @@
 import logging
 import uuid
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
@@ -21,9 +22,16 @@ def _is_valid_uuid(value: str) -> bool:
 
 
 class FeedbackRequest(BaseModel):
-    analysis_id: str
+    analysis_id: Optional[str] = None
     rating: int
     comment: str = ""
+
+    @field_validator("analysis_id")
+    @classmethod
+    def validate_analysis_id(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and not _is_valid_uuid(v):
+            raise ValueError("ID de análise inválido")
+        return v
 
     @field_validator("rating")
     @classmethod
@@ -45,20 +53,18 @@ async def post_feedback(
     body: FeedbackRequest,
     current_user=Depends(require_auth),
 ):
-    if not _is_valid_uuid(body.analysis_id):
-        raise HTTPException(status_code=400, detail="ID de análise inválido.")
-
     user = get_or_create_user(current_user.email)
 
-    analysis = get_analysis(body.analysis_id)
-    if analysis is None:
-        raise HTTPException(status_code=404, detail="Análise não encontrada.")
-    if analysis["user_id"] != user["id"]:
-        logger.warning(
-            "Unauthorized feedback attempt: user %s tried to review analysis %s owned by %s",
-            user["id"], body.analysis_id, analysis["user_id"],
-        )
-        raise HTTPException(status_code=403, detail="Acesso negado.")
+    if body.analysis_id is not None:
+        analysis = get_analysis(body.analysis_id)
+        if analysis is None:
+            raise HTTPException(status_code=404, detail="Análise não encontrada.")
+        if analysis["user_id"] != user["id"]:
+            logger.warning(
+                "Unauthorized feedback attempt: user %s tried to review analysis %s owned by %s",
+                user["id"], body.analysis_id, analysis["user_id"],
+            )
+            raise HTTPException(status_code=403, detail="Acesso negado.")
 
     save_feedback(user["id"], body.analysis_id, body.rating, body.comment)
     return {"success": True}

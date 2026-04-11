@@ -1,56 +1,56 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { X, Check } from "lucide-react";
 import { API_URL } from "@/lib/config";
 
-interface FeedbackWidgetProps {
-  analysisId: string;
-  token: string | null;
-}
-
 type SavedFeedback = { rating: number; comment: string };
 
-export function FeedbackWidget({ analysisId, token }: FeedbackWidgetProps) {
+export function FeedbackWidget() {
   const [open, setOpen] = useState(false);
-  // Last saved feedback fetched from server (or just submitted)
+  const [token, setToken] = useState<string | null>(null);
+  const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [savedFeedback, setSavedFeedback] = useState<SavedFeedback | null>(null);
-  // Current form state
   const [rating, setRating] = useState<number | null>(null);
   const [comment, setComment] = useState("");
-  // UI state
   const [submitting, setSubmitting] = useState(false);
   const [justSubmitted, setJustSubmitted] = useState(false);
   const [editingNew, setEditingNew] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const [pulsing, setPulsing] = useState(true);
-  const [showTooltip, setShowTooltip] = useState(false);
+  const [panelLoading, setPanelLoading] = useState(false);
+  const [pulsing] = useState(true);
 
-  // Fetch most recent feedback on mount
-  useEffect(() => {
-    if (!token || !analysisId) return;
-    fetch(`${API_URL}/api/feedback/${analysisId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data) {
-          setSavedFeedback({ rating: data.rating, comment: data.comment ?? "" });
-        }
+  function handleOpenPanel() {
+    if (open) {
+      setOpen(false);
+      setEditingNew(false);
+      setJustSubmitted(false);
+      return;
+    }
+
+    // Read latest values from localStorage every time the panel opens
+    const t = localStorage.getItem("ats_token");
+    const a = localStorage.getItem("ats_current_analysis");
+    setToken(t);
+    setAnalysisId(a);
+    setSavedFeedback(null);
+
+    if (t && a) {
+      setPanelLoading(true);
+      fetch(`${API_URL}/api/feedback/${a}`, {
+        headers: { Authorization: `Bearer ${t}` },
       })
-      .catch(() => {})
-      .finally(() => setLoaded(true));
-  }, [analysisId, token]);
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data) {
+            setSavedFeedback({ rating: data.rating, comment: data.comment ?? "" });
+          }
+        })
+        .catch(() => {})
+        .finally(() => setPanelLoading(false));
+    }
 
-  // Show tooltip and stop pulsing after 5s (only if not already rated)
-  useEffect(() => {
-    if (!loaded) return;
-    if (savedFeedback) return;
-
-    setShowTooltip(true);
-    const timer = setTimeout(() => setPulsing(false), 5000);
-    return () => clearTimeout(timer);
-  }, [loaded, savedFeedback]);
+    setOpen(true);
+  }
 
   function openNewForm() {
     setRating(null);
@@ -60,22 +60,24 @@ export function FeedbackWidget({ analysisId, token }: FeedbackWidgetProps) {
   }
 
   async function handleSubmit() {
-    if (rating === null || submitting) return;
+    if (rating === null || submitting || !token) return;
     setSubmitting(true);
     try {
+      const body: Record<string, unknown> = { rating, comment };
+      if (analysisId) body.analysis_id = analysisId;
+
       const res = await fetch(`${API_URL}/api/feedback`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ analysis_id: analysisId, rating, comment }),
+        body: JSON.stringify(body),
       });
       if (res.ok) {
         setSavedFeedback({ rating, comment });
         setJustSubmitted(true);
         setEditingNew(false);
-        setShowTooltip(false);
         setTimeout(() => {
           setJustSubmitted(false);
           setOpen(false);
@@ -89,10 +91,7 @@ export function FeedbackWidget({ analysisId, token }: FeedbackWidgetProps) {
   }
 
   const alreadyRated = !!savedFeedback;
-  // Show the "viewing saved" mode: have a saved feedback AND not currently editing a new one
   const viewingSaved = alreadyRated && !editingNew && !justSubmitted;
-
-  if (!loaded) return null;
 
   return (
     <>
@@ -119,8 +118,20 @@ export function FeedbackWidget({ analysisId, token }: FeedbackWidgetProps) {
 
             <div className="px-5 py-4 space-y-4">
 
+              {/* Loading previous feedback */}
+              {panelLoading && (
+                <p className="text-sm text-gray-400 text-center py-4">Carregando...</p>
+              )}
+
+              {/* Not authenticated */}
+              {!panelLoading && !token && !justSubmitted && (
+                <p className="text-sm text-gray-500 text-center py-4">
+                  Faça login para enviar um feedback.
+                </p>
+              )}
+
               {/* Thank you after submit */}
-              {justSubmitted && (
+              {!panelLoading && justSubmitted && (
                 <div className="flex flex-col items-center gap-2 py-4 text-center">
                   <span className="text-3xl">🎉</span>
                   <p className="text-sm font-medium text-gray-800">Obrigado pelo feedback!</p>
@@ -129,7 +140,7 @@ export function FeedbackWidget({ analysisId, token }: FeedbackWidgetProps) {
               )}
 
               {/* Viewing saved feedback (readonly) */}
-              {viewingSaved && savedFeedback && (
+              {!panelLoading && token && viewingSaved && savedFeedback && (
                 <>
                   <div>
                     <div className="flex gap-1 flex-wrap justify-center">
@@ -172,7 +183,7 @@ export function FeedbackWidget({ analysisId, token }: FeedbackWidgetProps) {
               )}
 
               {/* New feedback form (first time or editingNew) */}
-              {!justSubmitted && !viewingSaved && (
+              {!panelLoading && token && !justSubmitted && !viewingSaved && (
                 <>
                   <div>
                     <div className="flex gap-1 flex-wrap justify-center">
@@ -223,41 +234,9 @@ export function FeedbackWidget({ analysisId, token }: FeedbackWidgetProps) {
           </div>
         )}
 
-        {/* Tooltip balloon */}
-        {showTooltip && !open && !alreadyRated && (
-          <div
-            className="relative bg-white rounded-xl shadow-md border border-gray-200 px-4 py-3 max-w-[220px]"
-            style={{ animation: "slideUpFade 0.25s ease-out" }}
-          >
-            <button
-              onClick={() => setShowTooltip(false)}
-              className="absolute top-1.5 right-1.5 text-gray-300 hover:text-gray-500 transition-colors"
-            >
-              <X className="h-3 w-3" />
-            </button>
-            <p className="text-sm font-medium text-gray-700 pr-3">
-              Seu feedback é muito importante!
-            </p>
-            <span
-              className="absolute -bottom-2 right-6 w-0 h-0"
-              style={{
-                borderLeft: "8px solid transparent",
-                borderRight: "8px solid transparent",
-                borderTop: "8px solid white",
-                filter: "drop-shadow(0 1px 0 #e5e7eb)",
-              }}
-            />
-          </div>
-        )}
-
-        {/* Floating button */}
+        {/* Floating button — always rendered, always clickable */}
         <button
-          onClick={() => {
-            setShowTooltip(false);
-            setEditingNew(false);
-            setJustSubmitted(false);
-            setOpen((v) => !v);
-          }}
+          onClick={handleOpenPanel}
           className={`flex items-center gap-2 rounded-full px-5 py-3 shadow-lg font-semibold text-white text-sm transition-transform hover:scale-105 ${
             alreadyRated
               ? "bg-emerald-600 hover:bg-emerald-700"

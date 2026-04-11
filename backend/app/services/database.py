@@ -87,7 +87,7 @@ def mark_analysis_paid(analysis_id: str) -> dict:
 # Feedback
 # ---------------------------------------------------------------------------
 
-def save_feedback(user_id: str, analysis_id: str, rating: int, comment: str) -> dict:
+def save_feedback(user_id: str, analysis_id: str | None, rating: int, comment: str) -> dict:
     db = _client()
     result = db.table("feedbacks").insert({
         "user_id": user_id,
