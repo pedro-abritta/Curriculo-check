@@ -9,8 +9,22 @@ import anthropic
 # ---------------------------------------------------------------------------
 
 _SUMMARY_HEADERS: set[str] = {
-    "resumo profissional", "resumo", "sobre mim", "sobre",
-    "summary", "about", "perfil profissional", "perfil", "objetivo",
+    # Português
+    "resumo", "resumo profissional",
+    "sobre", "sobre mim",
+    "perfil", "perfil profissional",
+    "objetivo", "objetivo profissional",
+    "apresentação",
+    "síntese", "síntese profissional",
+    "qualificações",
+    "sumário", "sumário profissional",
+    # Inglês
+    "summary", "professional summary", "career summary", "executive summary",
+    "about", "about me",
+    "profile", "professional profile",
+    "objective", "career objective",
+    "overview",
+    "personal statement",
 }
 
 # Todos os títulos de seção conhecidos — usados para detectar o fim do resumo
@@ -30,10 +44,51 @@ _ALL_SECTION_HEADERS: set[str] = _SUMMARY_HEADERS | {
     "interesses", "interests",
 }
 
+# Padrões de linha de contato — usados no fallback
+_CONTACT_LINE_RE = re.compile(
+    r'@|https?://|linkedin\.com|github\.com|\+\d{1,3}[\s(]|\(\d{2}\)\s*\d',
+    re.IGNORECASE,
+)
+
 
 # ---------------------------------------------------------------------------
 # Extração do parágrafo de resumo
 # ---------------------------------------------------------------------------
+
+def _fallback_first_paragraph(lines: list[str]) -> str | None:
+    """
+    Fallback para currículos sem título de seção explícito.
+    Agrupa as linhas em blocos separados por linha vazia e retorna o primeiro
+    bloco que pareça um parágrafo descritivo (não nome, contato ou título de seção).
+    Um bloco é considerado descritivo se tiver >= 10 palavras no total.
+    """
+    blocks: list[list[str]] = []
+    current: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            if current:
+                blocks.append(current)
+                current = []
+        else:
+            current.append(stripped)
+    if current:
+        blocks.append(current)
+
+    for block in blocks:
+        # Rejeita blocos com linhas de contato (e-mail, URL, telefone)
+        if any(_CONTACT_LINE_RE.search(ln) for ln in block):
+            continue
+        # Rejeita blocos que sejam apenas um título de seção conhecido
+        if any(ln.rstrip(':').lower() in _ALL_SECTION_HEADERS for ln in block):
+            continue
+        text = re.sub(r'\s+', ' ', ' '.join(block)).strip()
+        # Parágrafo descritivo: pelo menos 10 palavras
+        if len(text.split()) >= 10:
+            return text
+
+    return None
+
 
 def _extract_summary_text(resume_text: str) -> str | None:
     """Localiza e extrai o parágrafo de resumo/sobre mim do currículo."""
@@ -47,7 +102,8 @@ def _extract_summary_text(resume_text: str) -> str | None:
             break
 
     if summary_start is None:
-        return None
+        # Nenhum título de seção reconhecido — usa o primeiro parágrafo descritivo
+        return _fallback_first_paragraph(lines)
 
     summary_lines: list[str] = []
     for line in lines[summary_start:]:

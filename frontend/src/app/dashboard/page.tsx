@@ -63,6 +63,12 @@ function passToStatus(s: "pass" | "fail"): EvidenceStatus {
   return s === "pass" ? "success" : "error";
 }
 
+function countToStatus(count: number): EvidenceStatus {
+  if (count === 0) return "error";
+  if (count === 1) return "warning";
+  return "success";
+}
+
 function dotColor(status: BackendStatus): string {
   if (status === "green") return "#10b981";
   if (status === "yellow") return "#f59e0b";
@@ -292,6 +298,24 @@ function SkillsTab({ skills }: { skills: any }) {
 
 // ─── Tab: Resumo Profissional ─────────────────────────────────────────────────
 
+function PillarContent({
+  found,
+  emptyMessage,
+  emptyHint,
+}: {
+  found: unknown[];
+  emptyMessage: string;
+  emptyHint: string;
+}) {
+  if (found.length > 0) return <EvidenceBlock items={found as any} />;
+  return (
+    <div className="px-4 py-3 space-y-1.5">
+      <p className="text-sm text-gray-700">{emptyMessage}</p>
+      <p className="text-xs text-gray-500">💡 {emptyHint}</p>
+    </div>
+  );
+}
+
 function SummaryTab({ summary }: { summary: any }) {
   if (!summary || summary.disabled) {
     return <p className="text-sm text-gray-400 py-4">Seção desativada.</p>;
@@ -308,42 +332,60 @@ function SummaryTab({ summary }: { summary: any }) {
       ) : (
         <>
           <EvidenceCard
-            softError
-            status={passToStatus(pillars.metrics.status)}
+            status={countToStatus(pillars.metrics.count)}
+            badgeLabel={pillars.metrics.count === 0 ? "Falha" : undefined}
             label="Métricas e Resultados"
             message={
-              pillars.metrics.status === "pass"
-                ? `${pillars.metrics.count} métricas encontradas no resumo`
-                : "Menos de 2 métricas encontradas"
+              pillars.metrics.count === 0
+                ? "Nenhuma métrica encontrada no resumo"
+                : pillars.metrics.count === 1
+                ? "1 métrica encontrada no resumo"
+                : `${pillars.metrics.count} métricas encontradas no resumo`
             }
           >
-            <EvidenceBlock items={pillars.metrics.found} />
+            <PillarContent
+              found={pillars.metrics.found}
+              emptyMessage="Nenhuma métrica foi encontrada no seu resumo profissional."
+              emptyHint="Considere adicionar resultados quantificáveis, como percentuais, valores ou prazos."
+            />
           </EvidenceCard>
 
           <EvidenceCard
-            softError
-            status={passToStatus(pillars.skills.status)}
+            status={countToStatus(pillars.skills.count)}
+            badgeLabel={pillars.skills.count === 0 ? "Falha" : undefined}
             label="Skills da Vaga no Resumo"
             message={
-              pillars.skills.status === "pass"
-                ? `${pillars.skills.count} skills da vaga mencionadas no resumo`
-                : "Menos de 2 skills da vaga no resumo"
+              pillars.skills.count === 0
+                ? "Nenhuma skill da vaga no resumo"
+                : pillars.skills.count === 1
+                ? "1 skill da vaga mencionada no resumo"
+                : `${pillars.skills.count} skills da vaga mencionadas no resumo`
             }
           >
-            <EvidenceBlock items={pillars.skills.found} />
+            <PillarContent
+              found={pillars.skills.found}
+              emptyMessage="Nenhuma skill da vaga foi encontrada no seu resumo profissional."
+              emptyHint="Considere mencionar algumas skills relevantes para a vaga."
+            />
           </EvidenceCard>
 
           <EvidenceCard
-            softError
-            status={passToStatus(pillars.impact_verbs.status)}
+            status={countToStatus(pillars.impact_verbs.count)}
+            badgeLabel={pillars.impact_verbs.count === 0 ? "Falha" : undefined}
             label="Verbos de Impacto"
             message={
-              pillars.impact_verbs.status === "pass"
-                ? `${pillars.impact_verbs.count} verbos de impacto encontrados`
-                : "Menos de 2 verbos de impacto"
+              pillars.impact_verbs.count === 0
+                ? "Nenhum verbo de impacto encontrado"
+                : pillars.impact_verbs.count === 1
+                ? "1 verbo de impacto encontrado"
+                : `${pillars.impact_verbs.count} verbos de impacto encontrados`
             }
           >
-            <EvidenceBlock items={pillars.impact_verbs.found} />
+            <PillarContent
+              found={pillars.impact_verbs.found}
+              emptyMessage="Nenhum verbo de impacto foi encontrado no seu resumo profissional."
+              emptyHint="Considere usar verbos de ação como 'desenvolveu', 'liderou', 'aumentou'."
+            />
           </EvidenceCard>
         </>
       )}

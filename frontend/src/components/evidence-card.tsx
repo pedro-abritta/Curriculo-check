@@ -42,6 +42,7 @@ interface EvidenceCardProps {
   children?: React.ReactNode;
   defaultOpen?: boolean;
   softError?: boolean;
+  badgeLabel?: string;
 }
 
 export function EvidenceCard({
@@ -51,9 +52,11 @@ export function EvidenceCard({
   children,
   defaultOpen = false,
   softError = false,
+  badgeLabel,
 }: EvidenceCardProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const cfg = softError && status === "error" ? STATUS_CFG["warning"] : STATUS_CFG[status];
+  const resolvedBadgeLabel = badgeLabel ?? cfg.badgeLabel;
   const expandable = !!children;
 
   return (
@@ -81,7 +84,7 @@ export function EvidenceCard({
         {/* Right: badge + chevron */}
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.badge}`}>
-            {cfg.badgeLabel}
+            {resolvedBadgeLabel}
           </span>
           {expandable && (
             <ChevronDown
