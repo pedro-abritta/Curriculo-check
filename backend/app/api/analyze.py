@@ -14,7 +14,7 @@ from app.services.dates_analyzer import analyze_dates
 from app.services.impact_analyzer import analyze_impact
 from app.services.parser import extract_text_from_docx, extract_text_from_pdf
 from app.services.paywall_toggle import PAYWALL_ENABLED
-from app.services.resume_validator import validate_resume
+from app.services.resume_validator import validate_inputs
 from app.services.sanitizer import validate_text
 from app.services.section_toggle import ACTIVE_SECTIONS
 from app.services.skills_analyzer import analyze_skills
@@ -200,8 +200,8 @@ async def analyze(
         logger.warning("Malicious content detected in job description")
         raise HTTPException(status_code=400, detail=error_msg)
 
-    # Pré-validação: verificar se o arquivo é um currículo legível
-    validation = validate_resume(resume_text)
+    # Pré-validação: currículo + descrição da vaga em uma única chamada Claude API
+    validation = validate_inputs(resume_text, job_description)
     if not validation["is_resume"]:
         raise HTTPException(
             status_code=400,
@@ -211,6 +211,11 @@ async def analyze(
         raise HTTPException(
             status_code=400,
             detail="Seu currículo parece ter problemas de formatação (colunas, imagens sobre texto, etc.) que dificultam a leitura. Recomendamos usar um modelo de coluna única sem elementos gráficos.",
+        )
+    if not validation["is_job_description"]:
+        raise HTTPException(
+            status_code=400,
+            detail="O texto inserido não parece ser uma descrição de vaga. Cole a descrição completa da vaga incluindo cargo, responsabilidades e requisitos.",
         )
 
     # Seções de análise (controladas por ACTIVE_SECTIONS)
