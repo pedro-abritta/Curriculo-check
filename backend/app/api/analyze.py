@@ -1,6 +1,8 @@
+import io
 import logging
 import re
 
+import pdfplumber
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 
 from app.limiter import limiter
@@ -21,11 +23,18 @@ from app.services.summary_analyzer import analyze_summary
 logger = logging.getLogger("security")
 
 # ---------------------------------------------------------------------------
+<<<<<<< Updated upstream
 # Detecção de formatação irregular (títulos/nome com espaços entre letras)
 # ---------------------------------------------------------------------------
 
 # Detecta sequências de letras maiúsculas isoladas separadas por espaço(s)
 # Ex: "P R O F E S S I O N A L  S U M M A R Y"
+=======
+# Detecção de formatação irregular
+# ---------------------------------------------------------------------------
+
+# Sequências de letras maiúsculas isoladas separadas por espaço (ex: "P R O F I L E")
+>>>>>>> Stashed changes
 _SPACED_TITLE_RE = re.compile(r'\b[A-ZÀ-Ú](?:[ \t]+[A-ZÀ-Ú]){2,}\b')
 
 
@@ -35,17 +44,84 @@ def _has_spaced_titles(text: str) -> bool:
 
 
 def _has_spaced_name(resume_text: str) -> bool:
+<<<<<<< Updated upstream
     """Retorna True se a primeira linha não-vazia contém muitas letras isoladas (nome espaçado)."""
     for line in resume_text.split('\n'):
         stripped = line.strip()
         if stripped:
             # Letra isolada = não adjacente a outra letra
+=======
+    """Retorna True se a primeira linha não-vazia tem muitas letras isoladas (nome espaçado)."""
+    for line in resume_text.split('\n'):
+        stripped = line.strip()
+        if stripped:
+>>>>>>> Stashed changes
             isolated = re.findall(
                 r'(?<![A-Za-zÀ-ú])[A-Za-zÀ-ú](?![A-Za-zÀ-ú])', stripped
             )
             return len(isolated) >= 4
     return False
 
+<<<<<<< Updated upstream
+=======
+
+def _detect_multi_column(file_bytes: bytes, is_pdf: bool) -> bool:
+    """Retorna True se o PDF parece ter layout de múltiplas colunas."""
+    if not is_pdf:
+        return False
+    try:
+        with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
+            total_lines = 0
+            multi_col_lines = 0
+            for page in pdf.pages:
+                page_width = page.width
+                if not page_width:
+                    continue
+                words = page.extract_words()
+                if not words:
+                    continue
+                # Agrupa palavras por posição Y (bucket de 5 pts = mesma linha)
+                lines: dict[int, list[float]] = {}
+                for w in words:
+                    key = round(float(w["top"]) / 5) * 5
+                    lines.setdefault(key, []).append(float(w["x0"]))
+                for x_positions in lines.values():
+                    if len(x_positions) < 2:
+                        continue
+                    total_lines += 1
+                    span = max(x_positions) - min(x_positions)
+                    if span > 0.4 * page_width:
+                        multi_col_lines += 1
+        if total_lines == 0:
+            return False
+        return (multi_col_lines / total_lines) > 0.20
+    except Exception:
+        return False
+
+
+def _detect_mid_sentence_breaks(text: str) -> bool:
+    """Retorna True se >30% das transições de linha parecem ser quebras no meio de frases."""
+    lines = [ln for ln in text.split('\n') if ln.strip()]
+    if len(lines) < 5:
+        return False
+    mid_sentence = 0
+    transitions = 0
+    for i in range(len(lines) - 1):
+        current = lines[i].rstrip()
+        next_line = lines[i + 1].lstrip()
+        if not current or not next_line:
+            continue
+        transitions += 1
+        ends_without_punct = current[-1] not in '.!?:;,'
+        next_starts_lower = next_line[0].islower()
+        if ends_without_punct and next_starts_lower:
+            mid_sentence += 1
+    if transitions == 0:
+        return False
+    return (mid_sentence / transitions) > 0.30
+
+
+>>>>>>> Stashed changes
 router = APIRouter()
 
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
@@ -168,6 +244,7 @@ async def analyze(
             detail="Nenhum texto encontrado no arquivo. O documento pode estar vazio ou protegido.",
         )
 
+<<<<<<< Updated upstream
     # Detecção de formatação irregular (texto original mantido intacto)
     formatting_warnings: list[str] = []
     if _has_spaced_titles(resume_text):
@@ -179,6 +256,29 @@ async def analyze(
     if _has_spaced_name(resume_text):
         formatting_warnings.append(
             "O nome no currículo pode estar com formatação irregular. Verifique se está correto."
+=======
+    # Verificações de formatação (avisos não bloqueantes)
+    formatting_warnings: list[str] = []
+    is_pdf = file.content_type == "application/pdf"
+
+    if _has_spaced_titles(resume_text) or _has_spaced_name(resume_text):
+        formatting_warnings.append(
+            "Detectamos que seu currículo usa títulos com espaços entre letras "
+            "(ex: 'R E S U M O P R O F I S S I O N A L'). Isso pode dificultar a leitura por "
+            "sistemas ATS reais. Recomendamos usar formatação padrão."
+        )
+
+    if _detect_multi_column(file_bytes, is_pdf):
+        formatting_warnings.append(
+            "Seu currículo parece usar layout com múltiplas colunas. Isso pode fazer com que "
+            "sistemas ATS leiam o conteúdo fora de ordem. Recomendamos usar coluna única."
+        )
+
+    if _detect_mid_sentence_breaks(resume_text):
+        formatting_warnings.append(
+            "Detectamos possíveis quebras de linha no meio de frases, o que pode indicar "
+            "problemas na extração do texto. Verifique se o arquivo foi gerado corretamente."
+>>>>>>> Stashed changes
         )
 
     # Sanitizar textos antes de qualquer processamento
