@@ -1,9 +1,3 @@
-from app.limiter import limiter
-from app.api.payment import router as payment_router
-from app.api.feedback import router as feedback_router
-from app.api.auth import router as auth_router
-from app.api.analyze import router as analyze_router
-from app.api.analysis import router as analysis_router
 import logging
 
 from dotenv import load_dotenv
@@ -14,6 +8,13 @@ from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 
 load_dotenv()
+
+from app.limiter import limiter
+from app.api.payment import router as payment_router
+from app.api.feedback import router as feedback_router
+from app.api.auth import router as auth_router
+from app.api.analyze import router as analyze_router
+from app.api.analysis import router as analysis_router
 
 
 logging.basicConfig(
@@ -49,7 +50,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
-app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000",
@@ -58,6 +58,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(auth_router, prefix="/api/auth")
 app.include_router(analyze_router, prefix="/api")

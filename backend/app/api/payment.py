@@ -18,6 +18,8 @@ logger = logging.getLogger("security")
 router = APIRouter()
 
 MP_WEBHOOK_SECRET = os.environ.get("MP_WEBHOOK_SECRET")
+MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 
 class CreatePaymentRequest(BaseModel):
@@ -43,7 +45,8 @@ def _verify_mp_signature(x_signature: str, x_request_id: str, data_id: str, secr
     if not ts or not v1:
         return False
     message = f"id:{data_id};request-id:{x_request_id};ts:{ts};"
-    expected = hmac.new(secret.encode(), message.encode(), hashlib.sha256).hexdigest()
+    expected = hmac.new(secret.encode(), message.encode(),
+                        hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, v1)
 
 
@@ -68,7 +71,8 @@ async def create_payment(
         print(f">>> 4. Análise encontrada: {record is not None}")
 
         if record is None:
-            raise HTTPException(status_code=404, detail="Análise não encontrada.")
+            raise HTTPException(
+                status_code=404, detail="Análise não encontrada.")
         if record["user_id"] != user["id"]:
             logger.warning(
                 "Unauthorized payment attempt: user %s tried to pay for analysis %s owned by %s",
@@ -76,24 +80,23 @@ async def create_payment(
             )
             raise HTTPException(status_code=403, detail="Acesso negado.")
         if record.get("paid"):
-            raise HTTPException(status_code=400, detail="Esta análise já foi paga.")
+            raise HTTPException(
+                status_code=400, detail="Esta análise já foi paga.")
 
         print(">>> 5. Criando SDK Mercado Pago...")
-        sdk = mercadopago.SDK(os.environ["PROD_MP_ACCESS_TOKEN"])
+        sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
 
         preference_data = {
             "items": [
                 {
                     "title": "ATS Analyzer - Resultado da Análise",
                     "quantity": 1,
-                    "unit_price": 9.90,
+                    "unit_price": 14.90,
                     "currency_id": "BRL",
                 }
             ],
             "payment_methods": {
                 "excluded_payment_types": [
-                    {"id": "credit_card"},
-                    {"id": "debit_card"},
                     {"id": "ticket"},
                     {"id": "atm"},
                     {"id": "prepaid_card"},
@@ -102,9 +105,9 @@ async def create_payment(
                 "installments": 1,
             },
             "back_urls": {
-                "success": f"http://localhost:3000/payment/success?analysis_id={body.analysis_id}",
-                "failure": "http://localhost:3000/payment/failure",
-                "pending": "http://localhost:3000/payment/pending",
+                "success": f"{FRONTEND_URL}/payment/success?analysis_id={body.analysis_id}",
+                "failure": f"{FRONTEND_URL}/payment/failure",
+                "pending": f"{FRONTEND_URL}/payment/pending",
             },
             "external_reference": body.analysis_id,
         }
@@ -115,7 +118,8 @@ async def create_payment(
         preference = preference_response.get("response", {})
 
         if "init_point" not in preference:
-            raise HTTPException(status_code=500, detail="Erro ao criar preferência de pagamento.")
+            raise HTTPException(
+                status_code=500, detail="Erro ao criar preferência de pagamento.")
 
         print(f">>> 8. init_point: {preference['init_point']}")
         return {"payment_url": preference["init_point"]}
@@ -134,7 +138,8 @@ async def payment_webhook(request: Request):
     client_ip = request.client.host if request.client else "unknown"
 
     if not x_signature:
-        logger.warning("Webhook received without x-signature header from %s", client_ip)
+        logger.warning(
+            "Webhook received without x-signature header from %s", client_ip)
 
     try:
         body = await request.json()
@@ -149,10 +154,11 @@ async def payment_webhook(request: Request):
             # Validate MP signature if secret is configured
             if MP_WEBHOOK_SECRET and x_signature and x_request_id:
                 if not _verify_mp_signature(x_signature, x_request_id, str(payment_id), MP_WEBHOOK_SECRET):
-                    logger.warning("Webhook signature validation failed from %s", client_ip)
+                    logger.warning(
+                        "Webhook signature validation failed from %s", client_ip)
                     return {"status": "ok"}
 
-            sdk = mercadopago.SDK(os.environ["PROD_MP_ACCESS_TOKEN"])
+            sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
             payment_info = sdk.payment().get(payment_id)
             payment_data = payment_info.get("response", {})
 
