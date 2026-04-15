@@ -93,24 +93,75 @@ JSON:"""
 # Matching exato case-insensitive
 # ---------------------------------------------------------------------------
 
+# Caracteres que delimitam uma skill no texto: tudo exceto letras (ASCII + latim estendido para PT-BR) e dígitos.
+# Usar lookbehind/lookahead explícito em vez de \b porque \b depende da definição de \w do Python
+# com Unicode, que pode se comportar de forma imprevisível com texto extraído de PDF (espaços
+# não-quebráveis, colons unicode, etc.).
+_WORD_BOUNDARY = r'(?<![a-zA-Z0-9À-ÿ])'
+_WORD_BOUNDARY_END = r'(?![a-zA-Z0-9À-ÿ])'
+
+
+def _normalize_plural(text: str) -> str:
+    """
+    Remove 's' final de palavras para normalização singular/plural em português.
+    Ex: "bancos de dados" → "banco de dado", "APIs" → "API", "frameworks" → "framework"
+    Só remove 's' precedido de letra (preserva siglas/números como "C++", "3ds").
+    """
+    return re.sub(r'(?<=[a-zA-ZÀ-ÿ])s\b', '', text)
+
+
+def _skill_found_in_text(
+    skill_lower: str,
+    resume_text_lower: str,
+    resume_text_normalized: str | None = None,
+) -> bool:
+    """
+    Busca a skill como substring com boundary no texto completo do currículo.
+    Cobre todos os formatos: listas, 'Categoria: item1, item2', '(item)', etc.
+
+    Etapa 2: full-text search exato.
+    Etapa 3 (fallback): normaliza plural/singular e repete o match.
+      Ex: "bancos de dados" (vaga) encontra "Banco de Dados" (currículo)
+    """
+    pattern = _WORD_BOUNDARY + re.escape(skill_lower) + _WORD_BOUNDARY_END
+    if re.search(pattern, resume_text_lower):
+        return True
+
+    # Etapa 3: match com normalização de plural → singular
+    if resume_text_normalized is not None:
+        skill_normalized = _normalize_plural(skill_lower)
+        # Só tenta se a skill realmente mudou após normalização
+        if skill_normalized != skill_lower:
+            norm_pattern = _WORD_BOUNDARY + re.escape(skill_normalized) + _WORD_BOUNDARY_END
+            if re.search(norm_pattern, resume_text_normalized):
+                return True
+
+    return False
+
+
 def _match_skills(job_skills: list[str], resume_skills: list[str], resume_text: str) -> tuple[list[str], list[str]]:
     """
     Retorna (matched, missing).
-    Tenta match em 2 etapas:
-    1. Match exato case-insensitive contra a lista de skills extraídas do currículo
-    2. Se não encontrou, busca a skill como palavra inteira no texto completo do currículo
+    Tenta match em 3 etapas:
+    1. Match exato case-insensitive contra a lista de skills extraídas pelo Claude
+    2. Se não encontrou, full-text search com boundary explícito em TODO o resume_text
+       — encontra skills em qualquer formato: sub-categorias ('Banco de Dados: SQL'),
+         listas entre parênteses ('Pacote Office (Excel, Word)'), itens após vírgulas, etc.
+    3. Se ainda não encontrou, repete o full-text search com texto normalizado (plural→singular)
+       — encontra "bancos de dados" no texto "Banco de Dados", "APIs" no texto "API", etc.
     """
     resume_lower = {s.lower(): s for s in resume_skills}
     resume_text_lower = resume_text.lower()
+    resume_text_normalized = _normalize_plural(resume_text_lower)
     matched = []
     missing = []
     for skill in job_skills:
         skill_lower = skill.lower()
-        # Etapa 1: match exato contra lista extraída
+        # Etapa 1: match exato contra lista extraída pelo Claude
         if skill_lower in resume_lower:
             matched.append(skill)
-        # Etapa 2: busca como palavra inteira no texto completo
-        elif re.search(r'\b' + re.escape(skill_lower) + r'\b', resume_text_lower):
+        # Etapas 2 e 3: full-text search (exato e normalizado)
+        elif _skill_found_in_text(skill_lower, resume_text_lower, resume_text_normalized):
             matched.append(skill)
         else:
             missing.append(skill)

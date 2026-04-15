@@ -246,7 +246,7 @@ JSON:"""
 
     message = client.messages.create(
         model="claude-sonnet-4-20250514",
-        max_tokens=512,
+        max_tokens=4096,
         temperature=0,
         messages=[{"role": "user", "content": prompt}],
     )
@@ -255,7 +255,24 @@ JSON:"""
     raw = message.content[0].text.strip()
     raw = re.sub(r'^```(?:json)?\s*', '', raw)
     raw = re.sub(r'\s*```$', '', raw)
-    return json.loads(raw), tokens_used
+
+    try:
+        return json.loads(raw), tokens_used
+    except json.JSONDecodeError:
+        # Tenta truncar após o último "}" válido
+        last_brace = raw.rfind('}')
+        if last_brace != -1:
+            try:
+                return json.loads(raw[:last_brace + 1]), tokens_used
+            except json.JSONDecodeError:
+                pass
+        # Fallback: retorna estrutura vazia para não derrubar a análise
+        return {
+            "impact_verbs": [],
+            "metrics_context": {},
+            "skills_context": {},
+            "verbs_context": {},
+        }, tokens_used
 
 
 # ---------------------------------------------------------------------------
@@ -299,7 +316,19 @@ def analyze_summary(resume_text: str, job_skills: list[str]) -> dict:
     skills_found_values, _skills_missing = _match_skills_in_summary(summary_text, job_skills)
 
     # Única chamada Claude API — verbos + contextos
-    claude, tokens_used = _analyze_with_claude(summary_text, metric_values, skills_found_values)
+    try:
+        claude, tokens_used = _analyze_with_claude(summary_text, metric_values, skills_found_values)
+    except Exception:
+        return {
+            "score": 0,
+            "status": "red",
+            "pillars": None,
+            "summary_text": None,
+            "total_pillars": 3,
+            "pillars_passed": 0,
+            "tokens_used": 0,
+            "error": "Erro ao processar análise do resumo. Tente novamente.",
+        }
 
     metrics_context: dict = claude.get("metrics_context", {})
     skills_context: dict = claude.get("skills_context", {})
