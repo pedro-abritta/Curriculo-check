@@ -12,11 +12,11 @@ logger = logging.getLogger("security")
 router = APIRouter()
 
 SECTION_WEIGHTS = {
-    "skills": 0.30,
+    "skills": 0.40,
     "summary": 0.25,
-    "dates": 0.15,
-    "impact": 0.15,
-    "contact": 0.15,
+    "impact": 0.20,
+    "dates": 0.10,
+    "contact": 0.05,
 }
 
 
@@ -39,29 +39,31 @@ def _section_score(section: dict) -> int:
 def _build_preview(result_json: dict) -> dict:
     def section_preview(section: dict) -> dict:
         if not section or section.get("disabled"):
-            return {"score": 0, "status": "red", "disabled": True}
+            return {"score": 0, "disabled": True}
         score = section.get("overall", {}).get("score", section.get("score", 0))
-        status = section.get("overall", {}).get("status", section.get("status", "red"))
-        return {"score": score, "status": status}
+        return {"score": score}
 
-    overall_score = round(
+    # Usa overall_score já calculado no backend; fallback para registros antigos
+    overall_score = result_json.get("overall_score") or round(
         _section_score(result_json.get("skills", {})) * SECTION_WEIGHTS["skills"] +
         _section_score(result_json.get("summary", {})) * SECTION_WEIGHTS["summary"] +
-        _section_score(result_json.get("dates", {})) * SECTION_WEIGHTS["dates"] +
         _section_score(result_json.get("impact", {})) * SECTION_WEIGHTS["impact"] +
+        _section_score(result_json.get("dates", {})) * SECTION_WEIGHTS["dates"] +
         _section_score(result_json.get("contact", {})) * SECTION_WEIGHTS["contact"]
     )
 
     return {
+        "status": "success",
         "overall_score": overall_score,
         "user_area": result_json.get("user_area"),
         "job_area": result_json.get("job_area"),
+        "formatting_warnings": result_json.get("formatting_warnings", []),
         "sections": {
-            "skills": section_preview(result_json.get("skills", {})),
-            "summary": section_preview(result_json.get("summary", {})),
-            "dates": section_preview(result_json.get("dates", {})),
-            "impact": section_preview(result_json.get("impact", {})),
             "contact": section_preview(result_json.get("contact", {})),
+            "skills": section_preview(result_json.get("skills", {})),
+            "dates": section_preview(result_json.get("dates", {})),
+            "summary": section_preview(result_json.get("summary", {})),
+            "impact": section_preview(result_json.get("impact", {})),
         },
     }
 
@@ -100,12 +102,18 @@ async def get_analysis_result(
         raise HTTPException(status_code=403, detail="Acesso negado.")
 
     result_json = record.get("result_json") or {}
+    paid = record.get("paid", False)
 
-    if record.get("paid") or not PAYWALL_ENABLED:
-        return {**result_json, "paywall_active": False}
+    print(f">>> GET /analysis/{analysis_id}: paid={paid}, PAYWALL_ENABLED={PAYWALL_ENABLED}")
 
+    if paid or not PAYWALL_ENABLED:
+        print(f">>> Returning: FULL result (keys: {list(result_json.keys())})")
+        return {**result_json, "paywall_active": False, "analysis_id": analysis_id}
+
+    preview = _build_preview(result_json)
+    print(f">>> Returning: PREVIEW only (overall_score={preview.get('overall_score')}, sections={list(preview['sections'].keys())})")
     return {
         "paywall_active": True,
         "analysis_id": analysis_id,
-        "preview": _build_preview(result_json),
+        "preview": preview,
     }

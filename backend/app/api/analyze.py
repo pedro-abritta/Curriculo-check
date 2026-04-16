@@ -67,11 +67,11 @@ DANGEROUS_EXTENSIONS = frozenset({
 _DISABLED = {"disabled": True}
 
 SECTION_WEIGHTS = {
-    "skills": 0.30,
+    "skills": 0.40,
     "summary": 0.25,
-    "dates": 0.15,
-    "impact": 0.15,
-    "contact": 0.15,
+    "impact": 0.20,
+    "dates": 0.10,
+    "contact": 0.05,
 }
 
 
@@ -86,23 +86,22 @@ def _section_score(section: dict) -> int:
 def _build_preview(full_result: dict, overall_score: int) -> dict:
     def section_preview(section: dict) -> dict:
         if not section or section.get("disabled"):
-            return {"score": 0, "status": "red", "disabled": True}
-        score = section.get("overall", {}).get(
-            "score", section.get("score", 0))
-        status = section.get("overall", {}).get(
-            "status", section.get("status", "red"))
-        return {"score": score, "status": status}
+            return {"score": 0, "disabled": True}
+        score = section.get("overall", {}).get("score", section.get("score", 0))
+        return {"score": score}
 
     return {
+        "status": "success",
         "overall_score": overall_score,
-        "user_area": full_result["user_area"],
-        "job_area": full_result["job_area"],
+        "user_area": full_result.get("user_area"),
+        "job_area": full_result.get("job_area"),
+        "formatting_warnings": full_result.get("formatting_warnings", []),
         "sections": {
-            "skills": section_preview(full_result["skills"]),
-            "summary": section_preview(full_result["summary"]),
-            "dates": section_preview(full_result["dates"]),
-            "impact": section_preview(full_result["impact"]),
-            "contact": section_preview(full_result["contact"]),
+            "contact": section_preview(full_result.get("contact", {})),
+            "skills": section_preview(full_result.get("skills", {})),
+            "dates": section_preview(full_result.get("dates", {})),
+            "summary": section_preview(full_result.get("summary", {})),
+            "impact": section_preview(full_result.get("impact", {})),
         },
     }
 
@@ -253,9 +252,19 @@ async def analyze(
         areas.get("tokens_used", 0),
     ])
 
-    # Resultado completo
+    # Score geral
+    overall_score = round(
+        _section_score(skills) * SECTION_WEIGHTS["skills"] +
+        _section_score(summary) * SECTION_WEIGHTS["summary"] +
+        _section_score(impact) * SECTION_WEIGHTS["impact"] +
+        _section_score(dates) * SECTION_WEIGHTS["dates"] +
+        _section_score(contact) * SECTION_WEIGHTS["contact"]
+    )
+
+    # Resultado completo (inclui overall_score para uso no GET após pagamento)
     full_result = {
         "status": "success",
+        "overall_score": overall_score,
         "resume_text": resume_text,
         "job_description": job_description,
         "resume_length": len(resume_text),
@@ -271,27 +280,18 @@ async def analyze(
         "impact": impact,
     }
 
-    # Score geral (mesmos pesos do frontend)
-    overall_score = round(
-        _section_score(skills) * SECTION_WEIGHTS["skills"] +
-        _section_score(summary) * SECTION_WEIGHTS["summary"] +
-        _section_score(dates) * SECTION_WEIGHTS["dates"] +
-        _section_score(impact) * SECTION_WEIGHTS["impact"] +
-        _section_score(contact) * SECTION_WEIGHTS["contact"]
-    )
-
-    # Persistência no banco
+    # Persistência no banco (JSON completo — nunca exposto antes do pagamento)
     user = get_or_create_user(current_user.email)
     update_user_area(user["id"], areas["user_area"])
     analysis_record = save_analysis(
         user["id"], areas["job_area"], total_tokens, full_result)
     add_tokens(user["id"], total_tokens)
 
-    if not PAYWALL_ENABLED:
-        return {**full_result, "paywall_active": False, "analysis_id": analysis_record["id"]}
-
+    # POST sempre retorna preview — resultado completo só via GET após pagamento
+    preview = _build_preview(full_result, overall_score)
+    print(f">>> POST /analyze returning: paywall_active={PAYWALL_ENABLED}, overall_score={overall_score}, preview_keys={list(preview.keys())}, sections={list(preview['sections'].keys())}")
     return {
-        "paywall_active": True,
+        "paywall_active": PAYWALL_ENABLED,
         "analysis_id": analysis_record["id"],
-        "preview": _build_preview(full_result, overall_score),
+        "preview": preview,
     }

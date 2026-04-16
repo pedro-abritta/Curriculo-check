@@ -91,7 +91,7 @@ src/
 5. **Frases de Impacto**: score baseado em quantidade (0=0%, 1=33%, 2=67%, 3+=100%). Desduplicação entre Resumo e Experiência. Detecção de títulos suporta variações grudadas, espaçadas e normais, em PT e EN
 
 ## Score Geral
-Skills 40% + Resumo 25% + Datas 10% + Impacto 15% + Contato 10% (calculado no frontend)
+Skills 40% + Resumo 25% + Impacto 20% + Datas 10% + Contato 5% (calculado no backend, salvo em result_json["overall_score"]; frontend usa como fallback com mesmos pesos)
 
 ## Banco de Dados (Supabase)
 ### Tabelas

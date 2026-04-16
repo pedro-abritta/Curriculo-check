@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { X, Upload, LogOut, AlertTriangle } from "lucide-react";
+import { X, Upload, LogOut, AlertTriangle, Search, PenLine, CalendarX, Lightbulb, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +21,6 @@ import { AnalysisLoadingSkeleton } from "@/components/ui/analysis-loading-skelet
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type AppState = "loading_session" | "input" | "loading" | "result";
-type BackendStatus = "green" | "yellow" | "red";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -48,15 +47,8 @@ function getScore(section: any): number {
   return section.overall?.score ?? section.score ?? 0;
 }
 
-function getStatus(section: any): BackendStatus {
-  if (!section || section.disabled) return "red";
-  return section.overall?.status ?? section.status ?? "red";
-}
-
-function toEvidenceStatus(s: BackendStatus): EvidenceStatus {
-  if (s === "green") return "success";
-  if (s === "yellow") return "warning";
-  return "error";
+function scoreToColor(score: number): string {
+  return `hsl(${score * 1.2}, 70%, 50%)`;
 }
 
 function passToStatus(s: "pass" | "fail"): EvidenceStatus {
@@ -67,12 +59,6 @@ function countToStatus(count: number): EvidenceStatus {
   if (count === 0) return "error";
   if (count === 1) return "warning";
   return "success";
-}
-
-function dotColor(status: BackendStatus): string {
-  if (status === "green") return "#10b981";
-  if (status === "yellow") return "#f59e0b";
-  return "#ef4444";
 }
 
 function isMissingSkill(skill: string, missingList: string[]): boolean {
@@ -544,7 +530,7 @@ function ImpactTab({ impact }: { impact: any }) {
 
   return (
     <div className="space-y-3">
-      <SectionProgressBar title="Frases de Impacto · Qualidade" score={impact.score ?? 0} status={impact.status} />
+      <SectionProgressBar title="Frases de Impacto · Qualidade" score={impact.score ?? 0} />
 
       {impactPhrases.length >= 1 && nonImpactPhrases.length >= 1 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3 items-start">
@@ -636,7 +622,19 @@ function ContactTab({ contact }: { contact: any }) {
   );
 }
 
-// ─── Paywall View ────────────────────────────────────────────────────────────
+// ─── Tabs (shared between PaywallView and ResultView) ─────────────────────────
+
+type TabId = "skills" | "summary" | "dates" | "impact" | "contact";
+
+const TABS: { id: TabId; title: string }[] = [
+  { id: "skills", title: "Skills" },
+  { id: "summary", title: "Resumo Profissional" },
+  { id: "dates", title: "Datas" },
+  { id: "impact", title: "Frases de Impacto" },
+  { id: "contact", title: "Contato" },
+];
+
+// ─── Paywall View ─────────────────────────────────────────────────────────────
 
 function PaywallView({
   preview,
@@ -651,9 +649,18 @@ function PaywallView({
   onReset: () => void;
   onLogout: () => void;
 }) {
+  const [activeTab, setActiveTab] = useState<TabId>("skills");
   const [paying, setPaying] = useState(false);
   const overallScore: number = preview.overall_score ?? 0;
   const sections = preview.sections ?? {};
+
+  const sectionScores: Record<TabId, number> = {
+    skills: sections.skills?.score ?? 0,
+    summary: sections.summary?.score ?? 0,
+    dates: sections.dates?.score ?? 0,
+    impact: sections.impact?.score ?? 0,
+    contact: sections.contact?.score ?? 0,
+  };
 
   async function handleUnlock() {
     if (paying) return;
@@ -676,19 +683,11 @@ function PaywallView({
     }
   }
 
-  const sectionStatuses: Record<TabId, BackendStatus> = {
-    skills: sections.skills?.status ?? "red",
-    summary: sections.summary?.status ?? "red",
-    dates: sections.dates?.status ?? "red",
-    impact: sections.impact?.status ?? "red",
-    contact: sections.contact?.status ?? "red",
-  };
-
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-10">
       <div className="max-w-2xl mx-auto space-y-6">
 
-        {/* Top bar */}
+        {/* Top bar — idêntico ao ResultView */}
         <div className="flex items-start justify-between">
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={onReset}>
@@ -705,53 +704,76 @@ function PaywallView({
           </div>
         </div>
 
-        {/* Blurred Score */}
+        {/* Score ring — sem blur */}
         <div className="flex flex-col items-center gap-4 bg-white rounded-2xl border border-gray-200 shadow-sm px-6 py-8">
-          <div className="relative">
-            <div style={{ filter: "blur(8px)", pointerEvents: "none", userSelect: "none" }}>
-              <RadialScore score={overallScore} />
-            </div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-5xl">🔒</span>
-            </div>
-          </div>
+          <RadialScore score={overallScore} />
         </div>
 
-        {/* CTA Card */}
-        <div className="border-2 border-indigo-500 bg-white shadow-lg rounded-2xl p-8 flex flex-col items-center gap-4 text-center">
-          <span className="text-3xl">🔒</span>
-          <h2 className="text-xl font-bold text-gray-900">Sua análise está pronta!</h2>
-          <p className="text-sm text-gray-500 max-w-sm">
-            Desbloqueie o resultado completo para ver os detalhes de cada seção, recomendações e pontos de melhoria.
-          </p>
-          <button
-            onClick={handleUnlock}
-            disabled={paying}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-semibold rounded-xl py-3 px-8 transition-colors"
-          >
-            {paying ? "Redirecionando..." : "Desbloquear resultado — R$ 9,90"}
-          </button>
-          <p className="text-xs text-gray-400">🔒 Pagamento seguro via PIX</p>
-        </div>
-
-        {/* Disabled TabBar */}
+        {/* TabBar — visual idêntico ao ResultView, clique troca aba ativa */}
         <div className="overflow-x-auto">
           <div className="rounded-xl bg-gray-100 p-1 flex gap-1 min-w-max w-full">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
-                disabled
-                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium opacity-50 whitespace-nowrap text-gray-500"
-                style={{ cursor: "not-allowed" }}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 whitespace-nowrap ${
+                  activeTab === tab.id
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
               >
                 <span>{tab.title}</span>
                 <span
                   className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: dotColor(sectionStatuses[tab.id]) }}
+                  style={{ backgroundColor: scoreToColor(sectionScores[tab.id]) }}
                 />
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Conteúdo da aba — sempre o card de paywall, nunca detalhes */}
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-7 flex flex-col items-center gap-5 text-center">
+
+          {/* Cabeçalho */}
+          <div>
+            <h2 className="text-base font-bold text-gray-900">Seu currículo pode estar sendo eliminado automaticamente</h2>
+            <p className="mt-1 text-sm text-gray-500">Veja exatamente o que corrigir para passar nos filtros ATS</p>
+          </div>
+
+          {/* Itens */}
+          <ul className="space-y-3">
+            {[
+              { Icon: Search,    text: "Skills que a vaga exige e você não mencionou" },
+              { Icon: PenLine,   text: "Pontos fracos que fazem recrutadores descartarem seu currículo" },
+              { Icon: CalendarX, text: "Erros de formatação que sistemas ATS não perdoam" },
+              { Icon: Lightbulb, text: "Sugestões práticas para cada seção do seu currículo" },
+              { Icon: BarChart3, text: "Análise detalhada com score por seção" },
+            ].map(({ Icon, text }) => (
+              <li key={text} className="flex items-center justify-center gap-3">
+                <Icon className="h-4 w-4 text-indigo-500 flex-shrink-0" />
+                <span className="text-sm text-gray-700">{text}</span>
+              </li>
+            ))}
+          </ul>
+
+          {/* Comparação de preço */}
+          <div className="rounded-xl bg-gray-50 border border-gray-100 px-4 py-3 flex flex-col items-center gap-0.5">
+            <span className="text-xs text-gray-400">Consultorias de currículo cobram até</span>
+            <span className="text-xl font-semibold text-gray-300 line-through leading-tight">R$ 500,00</span>
+            <span className="text-xs text-gray-400 mt-1">Aqui você paga apenas</span>
+            <span className="text-2xl font-bold text-indigo-600 leading-tight">R$ 9,90</span>
+          </div>
+
+          {/* CTA */}
+          <button
+            onClick={handleUnlock}
+            disabled={paying}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-semibold rounded-xl py-3 px-8 transition-colors text-sm"
+          >
+            {paying ? "Redirecionando..." : "Ver meu resultado completo — R$ 9,90"}
+          </button>
+          <p className="text-xs text-gray-400 -mt-2">Pagamento seguro via PIX</p>
         </div>
 
         {/* Footer */}
@@ -765,16 +787,6 @@ function PaywallView({
 }
 
 // ─── Result View ──────────────────────────────────────────────────────────────
-
-type TabId = "skills" | "summary" | "dates" | "impact" | "contact";
-
-const TABS: { id: TabId; title: string }[] = [
-  { id: "skills", title: "Skills" },
-  { id: "summary", title: "Resumo Profissional" },
-  { id: "dates", title: "Datas" },
-  { id: "impact", title: "Frases de Impacto" },
-  { id: "contact", title: "Contato" },
-];
 
 function ResultView({
   result,
@@ -800,20 +812,20 @@ function ResultView({
   const impactScore = getScore(result.impact);
   const contactScore = getScore(result.contact);
 
-  const overallScore = Math.round(
-    skillsScore * 0.4 +
+  const overallScore = result.overall_score ?? Math.round(
+    skillsScore * 0.40 +
     summaryScore * 0.25 +
-    datesScore * 0.1 +
-    impactScore * 0.15 +
-    contactScore * 0.1
+    impactScore * 0.20 +
+    datesScore * 0.10 +
+    contactScore * 0.05
   );
 
-  const sectionStatuses: Record<TabId, BackendStatus> = {
-    skills: getStatus(result.skills),
-    summary: getStatus(result.summary),
-    dates: getStatus(result.dates),
-    impact: getStatus(result.impact),
-    contact: getStatus(result.contact),
+  const sectionScores: Record<TabId, number> = {
+    skills: skillsScore,
+    summary: summaryScore,
+    dates: datesScore,
+    impact: impactScore,
+    contact: contactScore,
   };
 
   return (
@@ -877,7 +889,7 @@ function ResultView({
                 <span>{tab.title}</span>
                 <span
                   className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: dotColor(sectionStatuses[tab.id]) }}
+                  style={{ backgroundColor: scoreToColor(sectionScores[tab.id]) }}
                 />
               </button>
             ))}
@@ -1029,9 +1041,24 @@ export default function DashboardPage() {
       if (!res.ok) throw new Error("Erro na análise");
 
       const data = await res.json();
+      console.log("[analyze] POST response:", JSON.stringify(data, null, 2));
       if (data.analysis_id) localStorage.setItem("ats_current_analysis", data.analysis_id);
       setAnalysisTime(new Date().toLocaleString("pt-BR"));
-      setResult(data);
+
+      if (!data.paywall_active) {
+        // Sem paywall: busca resultado completo via GET
+        const fullRes = await fetch(`${API_URL}/api/analysis/${data.analysis_id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (fullRes.status === 401) { handleLogout(); return; }
+        if (!fullRes.ok) throw new Error("Erro ao buscar resultado");
+        const fullData = await fullRes.json();
+        console.log("[analyze] GET full result keys:", Object.keys(fullData));
+        setResult(fullData);
+      } else {
+        console.log("[analyze] paywall active — showing preview only");
+        setResult(data);
+      }
       setAppState("result");
     } catch {
       setAppState("input");

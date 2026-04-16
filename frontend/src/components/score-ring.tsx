@@ -1,9 +1,10 @@
 function scoreConfig(score: number) {
+  const color = `hsl(${score * 1.2}, 70%, 50%)`;
   if (score >= 71)
-    return { color: "#10b981", label: "Excelente", badge: "bg-emerald-100 text-emerald-800" };
+    return { color, label: "Excelente", badge: "bg-emerald-100 text-emerald-800" };
   if (score >= 41)
-    return { color: "#f59e0b", label: "Moderado", badge: "bg-amber-100 text-amber-800" };
-  return { color: "#ef4444", label: "Crítico", badge: "bg-red-100 text-red-800" };
+    return { color, label: "Moderado", badge: "bg-amber-100 text-amber-800" };
+  return { color, label: "Crítico", badge: "bg-red-100 text-red-800" };
 }
 
 export function RadialScore({ score }: { score: number }) {
