@@ -1,21 +1,12 @@
 import json
+import logging
 import os
 import re
 
 import anthropic
+from fastapi import HTTPException
 
-# ---------------------------------------------------------------------------
-# Fallback quando a API falha: não bloqueia o usuário
-# ---------------------------------------------------------------------------
-
-_FALLBACK_VALID = {
-    "is_resume": True,
-    "is_readable": True,
-    "is_job_description": True,
-    "issues": [],
-    "confidence": 50,
-}
-
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Validação combinada: currículo + descrição de vaga em uma única chamada
@@ -126,5 +117,8 @@ JSON:"""
         }
 
     except Exception:
-        # Falha na API ou parse: não bloqueia o usuário
-        return _FALLBACK_VALID
+        logger.exception("resume_validator: Claude API call failed — rejecting request")
+        raise HTTPException(
+            status_code=503,
+            detail="Não foi possível validar o currículo no momento. Tente novamente em alguns instantes.",
+        )

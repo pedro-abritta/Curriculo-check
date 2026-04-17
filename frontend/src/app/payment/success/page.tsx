@@ -21,31 +21,24 @@ function PaymentSuccessContent() {
     }
 
     async function checkAndRedirect() {
-      console.log(">>> 1. Verificando status do pagamento...");
       const statusRes = await fetch(
         `${API_URL}/api/payment/status/${analysisId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      console.log(">>> 2. Status response:", statusRes.status);
-      if (!statusRes.ok) { console.log(">>> Status falhou"); return; }
+      if (!statusRes.ok) return;
       const { paid } = await statusRes.json();
-      console.log(">>> 3. Paid:", paid);
-      if (!paid) { console.log(">>> Não pago ainda"); return; }
+      if (!paid) return;
 
       if (intervalRef.current) clearInterval(intervalRef.current);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
-      console.log(">>> 4. Buscando resultado completo...");
       const resultRes = await fetch(
         `${API_URL}/api/analysis/${analysisId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      console.log(">>> 5. Result response:", resultRes.status);
-      if (!resultRes.ok) { console.log(">>> Result falhou, redirecionando"); window.location.href = "/dashboard"; return; }
+      if (!resultRes.ok) { window.location.href = "/dashboard"; return; }
       const resultData = await resultRes.json();
-      console.log(">>> 6. Result data keys:", Object.keys(resultData));
       localStorage.setItem("ats_pending_result", JSON.stringify(resultData));
-      console.log(">>> 7. Salvo no localStorage, redirecionando...");
       window.location.href = "/dashboard";
     }
 

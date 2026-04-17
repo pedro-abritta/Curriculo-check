@@ -1,8 +1,6 @@
-import io
 import logging
 import re
 
-import pdfplumber
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 
 from app.limiter import limiter
@@ -16,6 +14,7 @@ from app.services.parser import extract_text_from_docx, extract_text_from_pdf
 from app.services.paywall_toggle import PAYWALL_ENABLED
 from app.services.resume_validator import validate_inputs
 from app.services.sanitizer import validate_text
+from app.services.scoring import SECTION_WEIGHTS, _section_score
 from app.services.section_toggle import ACTIVE_SECTIONS
 from app.services.skills_analyzer import analyze_skills
 from app.services.summary_analyzer import analyze_summary
@@ -65,22 +64,6 @@ DANGEROUS_EXTENSIONS = frozenset({
 })
 
 _DISABLED = {"disabled": True}
-
-SECTION_WEIGHTS = {
-    "skills": 0.40,
-    "summary": 0.25,
-    "impact": 0.20,
-    "dates": 0.10,
-    "contact": 0.05,
-}
-
-
-def _section_score(section: dict) -> int:
-    if not section or section.get("disabled"):
-        return 0
-    if "overall" in section:
-        return section["overall"].get("score", 0)
-    return section.get("score", 0)
 
 
 def _build_preview(full_result: dict, overall_score: int) -> dict:
@@ -184,17 +167,12 @@ async def analyze(
         )
 
     # Sanitizar textos antes de qualquer processamento
-    print(f">>> SANITIZER: validando resume_text ({len(resume_text)} chars)")
     is_safe, error_msg = validate_text(resume_text)
-    print(f">>> SANITIZER resume: safe={is_safe}")
     if not is_safe:
         logger.warning("Malicious content detected in uploaded resume")
         raise HTTPException(status_code=400, detail=error_msg)
 
-    print(
-        f">>> SANITIZER: validando job_description ({len(job_description)} chars)")
     is_safe, error_msg = validate_text(job_description)
-    print(f">>> SANITIZER job: safe={is_safe}")
     if not is_safe:
         logger.warning("Malicious content detected in job description")
         raise HTTPException(status_code=400, detail=error_msg)
@@ -261,12 +239,11 @@ async def analyze(
         _section_score(contact) * SECTION_WEIGHTS["contact"]
     )
 
-    # Resultado completo (inclui overall_score para uso no GET após pagamento)
+    # Resultado completo — resume_text e job_description são usados apenas em
+    # memória durante a análise e NÃO são persistidos (dados pessoais sensíveis).
     full_result = {
         "status": "success",
         "overall_score": overall_score,
-        "resume_text": resume_text,
-        "job_description": job_description,
         "resume_length": len(resume_text),
         "job_description_length": len(job_description),
         "user_area": areas["user_area"],
@@ -289,7 +266,6 @@ async def analyze(
 
     # POST sempre retorna preview — resultado completo só via GET após pagamento
     preview = _build_preview(full_result, overall_score)
-    print(f">>> POST /analyze returning: paywall_active={PAYWALL_ENABLED}, overall_score={overall_score}, preview_keys={list(preview.keys())}, sections={list(preview['sections'].keys())}")
     return {
         "paywall_active": PAYWALL_ENABLED,
         "analysis_id": analysis_record["id"],

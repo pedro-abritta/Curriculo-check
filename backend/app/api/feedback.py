@@ -1,24 +1,17 @@
 import logging
-import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, field_validator
 
+from app.limiter import limiter
 from app.middleware.auth_middleware import require_auth
 from app.services.database import get_analysis, get_feedback, get_or_create_user, save_feedback
+from app.utils import is_valid_uuid
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-def _is_valid_uuid(value: str) -> bool:
-    try:
-        uuid.UUID(value)
-        return True
-    except ValueError:
-        return False
 
 
 class FeedbackRequest(BaseModel):
@@ -29,7 +22,7 @@ class FeedbackRequest(BaseModel):
     @field_validator("analysis_id")
     @classmethod
     def validate_analysis_id(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and not _is_valid_uuid(v):
+        if v is not None and not is_valid_uuid(v):
             raise ValueError("ID de análise inválido")
         return v
 
@@ -49,7 +42,9 @@ class FeedbackRequest(BaseModel):
 
 
 @router.post("/feedback")
+@limiter.limit("10/hour")
 async def post_feedback(
+    request: Request,
     body: FeedbackRequest,
     current_user=Depends(require_auth),
 ):
@@ -75,7 +70,7 @@ async def fetch_feedback(
     analysis_id: str,
     current_user=Depends(require_auth),
 ):
-    if not _is_valid_uuid(analysis_id):
+    if not is_valid_uuid(analysis_id):
         raise HTTPException(status_code=400, detail="ID de análise inválido.")
 
     user = get_or_create_user(current_user.email)

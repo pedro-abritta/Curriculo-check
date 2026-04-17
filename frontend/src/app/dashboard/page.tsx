@@ -24,7 +24,6 @@ type AppState = "loading_session" | "input" | "loading" | "result";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const VALID_TYPES = [
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -162,10 +161,6 @@ function InputView({
     setFileError("");
     if (!VALID_TYPES.includes(f.type)) {
       setFileError("Apenas .pdf ou .docx são aceitos.");
-      return;
-    }
-    if (f.size > MAX_FILE_SIZE) {
-      setFileError("O arquivo deve ter no máximo 5MB.");
       return;
     }
     setFile(f);
@@ -1041,7 +1036,6 @@ export default function DashboardPage() {
       if (!res.ok) throw new Error("Erro na análise");
 
       const data = await res.json();
-      console.log("[analyze] POST response:", JSON.stringify(data, null, 2));
       if (data.analysis_id) localStorage.setItem("ats_current_analysis", data.analysis_id);
       setAnalysisTime(new Date().toLocaleString("pt-BR"));
 
@@ -1053,10 +1047,8 @@ export default function DashboardPage() {
         if (fullRes.status === 401) { handleLogout(); return; }
         if (!fullRes.ok) throw new Error("Erro ao buscar resultado");
         const fullData = await fullRes.json();
-        console.log("[analyze] GET full result keys:", Object.keys(fullData));
         setResult(fullData);
       } else {
-        console.log("[analyze] paywall active — showing preview only");
         setResult(data);
       }
       setAppState("result");

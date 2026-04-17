@@ -3,6 +3,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+from app.limiter import limiter
 from app.services.database import get_or_create_user
 
 logger = logging.getLogger("security")
@@ -15,6 +16,7 @@ class LoginRequest(BaseModel):
 
 
 @router.post("/login")
+@limiter.limit("10/hour")
 def login(request: Request, body: LoginRequest):
     """Garante que o usuário autenticado via Google existe na tabela users."""
     user = get_or_create_user(body.email)
