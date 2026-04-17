@@ -921,6 +921,7 @@ export default function DashboardPage() {
   const [analysisTime, setAnalysisTime] = useState("");
   const [inputError, setInputError] = useState("");
   const initialized = useRef(false);
+  const sessionRestored = useRef(false);
 
   async function restoreSession(accessToken: string, email: string) {
     localStorage.setItem("ats_token", accessToken);
@@ -971,6 +972,7 @@ export default function DashboardPage() {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
+        sessionRestored.current = true;
         restoreSession(session.access_token, session.user.email!);
       } else {
         const stored = localStorage.getItem("ats_token");
@@ -984,7 +986,16 @@ export default function DashboardPage() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session) {
-        restoreSession(session.access_token, session.user.email!);
+        if (!sessionRestored.current) {
+          sessionRestored.current = true;
+          restoreSession(session.access_token, session.user.email!);
+        } else {
+          localStorage.setItem("ats_token", session.access_token);
+          setToken(session.access_token);
+        }
+      } else if (event === "TOKEN_REFRESHED" && session) {
+        localStorage.setItem("ats_token", session.access_token);
+        setToken(session.access_token);
       } else if (event === "SIGNED_OUT") {
         router.replace("/");
       }

@@ -53,6 +53,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000",
@@ -61,7 +62,6 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
-app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(auth_router, prefix="/api/auth")
 app.include_router(analyze_router, prefix="/api")
