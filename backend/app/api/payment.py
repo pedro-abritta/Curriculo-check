@@ -115,44 +115,59 @@ async def create_payment(
 @router.post("/payment/webhook")
 async def payment_webhook(request: Request):
     client_ip = request.client.host if request.client else "unknown"
+    logger.info("MP_WEBHOOK_SECRET starts with: %s", MP_WEBHOOK_SECRET[:4] if MP_WEBHOOK_SECRET else "NONE")
 
-    try:
-        body = await request.json()
-    except Exception:
-        raise HTTPException(status_code=400, detail="Body inválido.")
+    # Determine format from query params only — do not read body to detect format
+    data_id = request.query_params.get("data.id")
+    ipn_id = request.query_params.get("id")
+    ipn_topic = request.query_params.get("topic")
+
+    if ipn_id and ipn_topic:
+        # Old IPN format: ?id=xxx&topic=payment — no signature, confirm via MP API
+        if ipn_topic == "merchant_order":
+            return {"status": "ok"}
+
+        if ipn_topic != "payment":
+            return {"status": "ok"}
+
+        sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
+        payment_info = sdk.payment().get(int(ipn_id))
+        payment_data = payment_info.get("response", {})
+
+        if payment_data.get("status") == "approved":
+            analysis_id = payment_data.get("external_reference")
+            if analysis_id and is_valid_uuid(str(analysis_id)):
+                try:
+                    mark_analysis_paid(analysis_id)
+                except Exception:
+                    logger.exception("Failed to mark analysis %s as paid", analysis_id)
+
+        return {"status": "ok"}
+
+    # v2 format: ?data.id=xxx — requires HMAC signature
+    if not data_id:
+        logger.warning("Webhook missing both data.id and id/topic query params from %s", client_ip)
+        return {"status": "ok"}
+
+    if not MP_WEBHOOK_SECRET:
+        logger.error("MP_WEBHOOK_SECRET not configured — rejecting webhook from %s", client_ip)
+        raise HTTPException(status_code=403, detail="Webhook não configurado.")
 
     x_signature = request.headers.get("x-signature")
     x_request_id = request.headers.get("x-request-id")
 
-    if x_signature and x_request_id:
-        # Format v2: validate HMAC signature
-        # data_id must come from query string per MP spec, not from body
-        if not MP_WEBHOOK_SECRET:
-            logger.error("MP_WEBHOOK_SECRET not configured — rejecting webhook from %s", client_ip)
-            raise HTTPException(status_code=403, detail="Webhook não configurado.")
+    if not x_signature or not x_request_id:
+        logger.warning("Webhook v2 missing signature headers from %s", client_ip)
+        raise HTTPException(status_code=403, detail="Assinatura inválida.")
 
-        data_id = request.query_params.get("data.id")
-        if not data_id:
-            logger.warning("Webhook v2 missing data.id query param from %s", client_ip)
-            raise HTTPException(status_code=400, detail="Parâmetro data.id ausente.")
+    if not _verify_mp_signature(x_signature, x_request_id, data_id, MP_WEBHOOK_SECRET):
+        logger.warning("Webhook signature validation failed from %s", client_ip)
+        raise HTTPException(status_code=403, detail="Assinatura inválida.")
 
-        if not _verify_mp_signature(x_signature, x_request_id, data_id, MP_WEBHOOK_SECRET):
-            logger.warning("Webhook signature validation failed from %s", client_ip)
-            raise HTTPException(status_code=403, detail="Assinatura inválida.")
-
-        topic = request.query_params.get("type") or body.get("type")
-        payment_id = data_id
-    else:
-        # Old IPN format: no signature headers — confirm via MP API (safe: truth comes from MP)
-        topic = request.query_params.get("topic") or body.get("topic")
-        payment_id = request.query_params.get("data.id") or request.query_params.get("id")
-
-        if not payment_id or topic != "payment":
-            return {"status": "ok"}
-
-    if topic == "payment" and payment_id:
+    topic = request.query_params.get("type")
+    if topic == "payment":
         sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
-        payment_info = sdk.payment().get(payment_id)
+        payment_info = sdk.payment().get(int(data_id))
         payment_data = payment_info.get("response", {})
 
         if payment_data.get("status") == "approved":
