@@ -523,7 +523,6 @@ export default function LandingPage() {
               className="transition-colors text-slate-400 hover:text-white">
               Entrar
             </Link>
-            <span className="text-slate-500">Feito com IA · Claude API</span>
           </div>
         </div>
       </footer>
