@@ -637,15 +637,19 @@ function PaywallView({
   token,
   onReset,
   onLogout,
+  onPaid,
 }: {
   preview: any;
   analysisId: string;
   token: string | null;
   onReset: () => void;
   onLogout: () => void;
+  onPaid: (result: any) => void;
 }) {
   const [activeTab, setActiveTab] = useState<TabId>("skills");
   const [paying, setPaying] = useState(false);
+  const [polling, setPolling] = useState(false);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const overallScore: number = preview.overall_score ?? 0;
   const sections = preview.sections ?? {};
 
@@ -656,6 +660,31 @@ function PaywallView({
     impact: sections.impact?.score ?? 0,
     contact: sections.contact?.score ?? 0,
   };
+
+  function startPolling() {
+    setPolling(true);
+    pollingRef.current = setInterval(async () => {
+      try {
+        const statusRes = await fetch(`${API_URL}/api/payment/status/${analysisId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!statusRes.ok) return;
+        const { paid } = await statusRes.json();
+        if (!paid) return;
+
+        if (pollingRef.current) clearInterval(pollingRef.current);
+
+        const resultRes = await fetch(`${API_URL}/api/analysis/${analysisId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!resultRes.ok) return;
+        const data = await resultRes.json();
+        onPaid(data);
+      } catch {
+        // keep polling
+      }
+    }, 3000);
+  }
 
   async function handleUnlock() {
     if (paying) return;
@@ -672,7 +701,8 @@ function PaywallView({
       if (res.status === 401) { onLogout(); return; }
       if (!res.ok) throw new Error("Erro ao iniciar pagamento");
       const { payment_url } = await res.json();
-      window.location.href = payment_url;
+      window.open(payment_url, "_blank");
+      startPolling();
     } catch {
       setPaying(false);
     }
@@ -763,12 +793,16 @@ function PaywallView({
           {/* CTA */}
           <button
             onClick={handleUnlock}
-            disabled={paying}
+            disabled={paying || polling}
             className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-semibold rounded-xl py-3 px-8 transition-colors text-sm"
           >
-            {paying ? "Redirecionando..." : "Ver meu resultado completo — R$ 9,90"}
+            {polling ? "Aguardando confirmação do pagamento..." : paying ? "Abrindo pagamento..." : "Ver meu resultado completo — R$ 9,90"}
           </button>
-          <p className="text-xs text-gray-400 -mt-2">Pagamento seguro via PIX</p>
+          {polling ? (
+            <p className="text-xs text-indigo-500 -mt-2 animate-pulse">Confirme o PIX na aba que foi aberta</p>
+          ) : (
+            <p className="text-xs text-gray-400 -mt-2">Pagamento seguro via PIX</p>
+          )}
         </div>
 
         {/* Footer */}
@@ -1102,6 +1136,7 @@ function DashboardContent() {
           token={token}
           onReset={handleReset}
           onLogout={handleLogout}
+          onPaid={(data) => { setResult(data); setAppState("result"); }}
         />
       )}
       {appState === "result" && result && !result.paywall_active && (
