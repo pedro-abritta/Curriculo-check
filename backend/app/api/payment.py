@@ -19,6 +19,7 @@ router = APIRouter()
 MP_WEBHOOK_SECRET = os.environ.get("MP_WEBHOOK_SECRET")
 MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 PRODUCT_PRICE = float(os.getenv("PRODUCT_PRICE", "9.90"))
 
 
@@ -93,6 +94,7 @@ async def create_payment(
                 "pending": f"{FRONTEND_URL}/payment/pending",
             },
             "external_reference": body.analysis_id,
+            "notification_url": f"{BACKEND_URL}/api/payment/webhook",
         }
 
         preference_response = sdk.preference().create(preference_data)
