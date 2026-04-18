@@ -32,17 +32,10 @@ function PaymentSuccessContent() {
       if (intervalRef.current) clearInterval(intervalRef.current);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
-      const resultRes = await fetch(
-        `${API_URL}/api/analysis/${analysisId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (!resultRes.ok) { window.location.href = "/dashboard"; return; }
-      const resultData = await resultRes.json();
-      localStorage.setItem("ats_pending_result", JSON.stringify(resultData));
-      window.location.href = "/dashboard";
+      window.location.href = `/dashboard?analysis_id=${analysisId}`;
     }
 
-    intervalRef.current = setInterval(checkAndRedirect, 3000);
+    intervalRef.current = setInterval(checkAndRedirect, 2000);
 
     timeoutRef.current = setTimeout(() => {
       if (intervalRef.current) clearInterval(intervalRef.current);

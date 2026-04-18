@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRef, useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { X, Upload, LogOut, AlertTriangle, Search, PenLine, CalendarX, Lightbulb, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -913,8 +913,9 @@ function ResultView({
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-export default function DashboardPage() {
+function DashboardContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [appState, setAppState] = useState<AppState>("loading_session");
   const [token, setToken] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
@@ -923,7 +924,7 @@ export default function DashboardPage() {
   const initialized = useRef(false);
   const sessionRestored = useRef(false);
 
-  async function restoreSession(accessToken: string, email: string) {
+  async function restoreSession(accessToken: string, email: string, analysisIdFromQuery?: string | null) {
     localStorage.setItem("ats_token", accessToken);
     setToken(accessToken);
     await fetch(`${API_URL}/api/auth/login`, {
@@ -931,14 +932,25 @@ export default function DashboardPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
     });
-    const pending = localStorage.getItem("ats_pending_result");
-    if (pending) {
-      const parsed = JSON.parse(pending);
-      localStorage.removeItem("ats_pending_result");
-      setResult(parsed);
-      setAppState("result");
+
+    // Priority 1: analysis_id query param (post-payment redirect)
+    if (analysisIdFromQuery) {
+      fetch(`${API_URL}/api/analysis/${analysisIdFromQuery}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error("not found");
+          return res.json();
+        })
+        .then((data) => {
+          localStorage.setItem("ats_current_analysis", analysisIdFromQuery);
+          setResult(data);
+          setAppState("result");
+        })
+        .catch(() => setAppState("input"));
       return;
     }
+
     const currentAnalysisId = localStorage.getItem("ats_current_analysis");
     if (currentAnalysisId) {
       fetch(`${API_URL}/api/analysis/${currentAnalysisId}`, {
@@ -970,10 +982,12 @@ export default function DashboardPage() {
     if (initialized.current) return;
     initialized.current = true;
 
+    const analysisIdFromQuery = searchParams.get("analysis_id");
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         sessionRestored.current = true;
-        restoreSession(session.access_token, session.user.email!);
+        restoreSession(session.access_token, session.user.email!, analysisIdFromQuery);
       } else {
         const stored = localStorage.getItem("ats_token");
         if (stored) {
@@ -988,7 +1002,7 @@ export default function DashboardPage() {
       if (event === "SIGNED_IN" && session) {
         if (!sessionRestored.current) {
           sessionRestored.current = true;
-          restoreSession(session.access_token, session.user.email!);
+          restoreSession(session.access_token, session.user.email!, analysisIdFromQuery);
         } else {
           localStorage.setItem("ats_token", session.access_token);
           setToken(session.access_token);
@@ -1097,5 +1111,13 @@ export default function DashboardPage() {
         <InputView onSubmit={handleSubmit} onLogout={handleLogout} apiError={inputError} onClearApiError={() => setInputError("")} />
       )}
     </>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-white" />}>
+      <DashboardContent />
+    </Suspense>
   );
 }
