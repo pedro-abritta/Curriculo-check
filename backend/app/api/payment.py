@@ -116,42 +116,52 @@ async def create_payment(
 async def payment_webhook(request: Request):
     client_ip = request.client.host if request.client else "unknown"
 
-    if not MP_WEBHOOK_SECRET:
-        logger.error("MP_WEBHOOK_SECRET not configured — rejecting webhook from %s", client_ip)
-        raise HTTPException(status_code=403, detail="Webhook não configurado.")
-
-    x_signature = request.headers.get("x-signature")
-    x_request_id = request.headers.get("x-request-id")
-
-    if not x_signature or not x_request_id:
-        logger.warning("Webhook missing signature headers from %s", client_ip)
-        raise HTTPException(status_code=403, detail="Assinatura inválida.")
-
     try:
         body = await request.json()
     except Exception:
         raise HTTPException(status_code=400, detail="Body inválido.")
 
-    topic = body.get("type") or body.get("topic")
+    x_signature = request.headers.get("x-signature")
+    x_request_id = request.headers.get("x-request-id")
 
-    if topic == "payment":
-        payment_id = body.get("data", {}).get("id") or body.get("id")
-        if payment_id:
-            if not _verify_mp_signature(x_signature, x_request_id, str(payment_id), MP_WEBHOOK_SECRET):
-                logger.warning("Webhook signature validation failed from %s", client_ip)
-                raise HTTPException(status_code=403, detail="Assinatura inválida.")
+    if x_signature and x_request_id:
+        # Format v2: validate HMAC signature
+        # data_id must come from query string per MP spec, not from body
+        if not MP_WEBHOOK_SECRET:
+            logger.error("MP_WEBHOOK_SECRET not configured — rejecting webhook from %s", client_ip)
+            raise HTTPException(status_code=403, detail="Webhook não configurado.")
 
-            sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
-            payment_info = sdk.payment().get(payment_id)
-            payment_data = payment_info.get("response", {})
+        data_id = request.query_params.get("data.id")
+        if not data_id:
+            logger.warning("Webhook v2 missing data.id query param from %s", client_ip)
+            raise HTTPException(status_code=400, detail="Parâmetro data.id ausente.")
 
-            if payment_data.get("status") == "approved":
-                analysis_id = payment_data.get("external_reference")
-                if analysis_id and is_valid_uuid(str(analysis_id)):
-                    try:
-                        mark_analysis_paid(analysis_id)
-                    except Exception:
-                        logger.exception("Failed to mark analysis %s as paid", analysis_id)
+        if not _verify_mp_signature(x_signature, x_request_id, data_id, MP_WEBHOOK_SECRET):
+            logger.warning("Webhook signature validation failed from %s", client_ip)
+            raise HTTPException(status_code=403, detail="Assinatura inválida.")
+
+        topic = request.query_params.get("type") or body.get("type")
+        payment_id = data_id
+    else:
+        # Old IPN format: no signature headers — confirm via MP API (safe: truth comes from MP)
+        topic = request.query_params.get("topic") or body.get("topic")
+        payment_id = request.query_params.get("data.id") or request.query_params.get("id")
+
+        if not payment_id or topic != "payment":
+            return {"status": "ok"}
+
+    if topic == "payment" and payment_id:
+        sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
+        payment_info = sdk.payment().get(payment_id)
+        payment_data = payment_info.get("response", {})
+
+        if payment_data.get("status") == "approved":
+            analysis_id = payment_data.get("external_reference")
+            if analysis_id and is_valid_uuid(str(analysis_id)):
+                try:
+                    mark_analysis_paid(analysis_id)
+                except Exception:
+                    logger.exception("Failed to mark analysis %s as paid", analysis_id)
 
     return {"status": "ok"}
 
