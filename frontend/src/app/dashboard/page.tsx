@@ -180,7 +180,7 @@ function InputView({
     isReadableError || (apiError ?? "").includes("não parece ser um currículo");
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-white px-4 py-12">
+    <main className="min-h-screen flex items-center justify-center bg-white px-4 sm:px-6 py-12">
       {isValidationError && (
         <ValidationErrorModal
           message={apiError!}
@@ -188,7 +188,7 @@ function InputView({
           onClose={() => onClearApiError?.()}
         />
       )}
-      <div className="w-full max-w-2xl flex flex-col gap-8">
+      <div className="w-full max-w-2xl mx-auto flex flex-col gap-8">
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-4xl font-bold tracking-tight text-gray-900">ATS Analyzer</h1>
@@ -236,7 +236,10 @@ function InputView({
               >
                 <Upload className={`h-8 w-8 ${isDragging ? "text-indigo-500" : "text-gray-400"}`} />
                 <div className="text-center">
-                  <p className="font-medium text-gray-700">Arraste o arquivo ou clique para selecionar</p>
+                  <p className="font-medium text-gray-700">
+                    <span className="sm:hidden">Toque para selecionar o arquivo</span>
+                    <span className="hidden sm:inline">Arraste o arquivo ou clique para selecionar</span>
+                  </p>
                   <p className="text-sm text-gray-400 mt-1">.pdf ou .docx</p>
                 </div>
               </div>
@@ -262,8 +265,7 @@ function InputView({
           </CardHeader>
           <CardContent>
             <Textarea
-              placeholder="Cole aqui a descrição completa da vaga...
-              (título da vaga, pré requisitos, habilidades desejáveis. benefícios, tipo de vaga, etc, são irrelevantes para a análise)"
+              placeholder="Cole aqui a descrição da vaga..."
               value={jobText}
               onChange={(e) => setJobText(e.target.value)}
               className="min-h-[196px] resize-y text-sm"
@@ -621,12 +623,12 @@ function ContactTab({ contact }: { contact: any }) {
 
 type TabId = "skills" | "summary" | "dates" | "impact" | "contact";
 
-const TABS: { id: TabId; title: string }[] = [
-  { id: "skills", title: "Skills" },
-  { id: "summary", title: "Resumo Profissional" },
-  { id: "dates", title: "Datas" },
-  { id: "impact", title: "Frases de Impacto" },
-  { id: "contact", title: "Contato" },
+const TABS: { id: TabId; title: string; shortTitle: string }[] = [
+  { id: "skills",  title: "Skills",              shortTitle: "Skills"   },
+  { id: "summary", title: "Resumo Profissional",  shortTitle: "Resumo"   },
+  { id: "dates",   title: "Datas",               shortTitle: "Datas"    },
+  { id: "impact",  title: "Frases de Impacto",   shortTitle: "Impacto"  },
+  { id: "contact", title: "Contato",             shortTitle: "Contato"  },
 ];
 
 // ─── Paywall View ─────────────────────────────────────────────────────────────
@@ -701,20 +703,29 @@ function PaywallView({
       if (res.status === 401) { onLogout(); return; }
       if (!res.ok) throw new Error("Erro ao iniciar pagamento");
       const { payment_url } = await res.json();
-      window.open(payment_url, "_blank");
-      startPolling();
+      const isMobile = window.innerWidth < 768;
+      if (isMobile) {
+        window.location.href = payment_url;
+      } else {
+        window.open(payment_url, "_blank");
+        startPolling();
+      }
     } catch {
       setPaying(false);
     }
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-10">
+    <main className="min-h-screen bg-gray-50 px-4 sm:px-6 py-10">
       <div className="max-w-2xl mx-auto space-y-6">
 
         {/* Top bar — idêntico ao ResultView */}
-        <div className="flex items-start justify-between">
-          <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div className="order-1 sm:order-2 sm:text-right">
+            <p className="text-xs tracking-widest uppercase text-gray-400 font-medium">Análise ATS</p>
+            <h1 className="text-base sm:text-lg font-bold text-gray-900">Health Check do Currículo</h1>
+          </div>
+          <div className="order-2 sm:order-1 flex gap-2">
             <Button variant="outline" size="sm" onClick={onReset}>
               ← Nova Análise
             </Button>
@@ -722,10 +733,6 @@ function PaywallView({
               <LogOut className="h-3.5 w-3.5" />
               Sair
             </Button>
-          </div>
-          <div className="text-right">
-            <p className="text-xs tracking-widest uppercase text-gray-400 font-medium">Análise ATS</p>
-            <h1 className="text-lg font-bold text-gray-900">Health Check do Currículo</h1>
           </div>
         </div>
 
@@ -736,18 +743,19 @@ function PaywallView({
 
         {/* TabBar — visual idêntico ao ResultView, clique troca aba ativa */}
         <div className="overflow-x-auto">
-          <div className="rounded-xl bg-gray-100 p-1 flex gap-1 min-w-max w-full">
+          <div className="rounded-xl bg-gray-100 p-1 flex gap-1 w-full">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 whitespace-nowrap ${
+                className={`flex-1 flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-xs font-medium transition-all duration-200 whitespace-nowrap ${
                   activeTab === tab.id
                     ? "bg-white text-gray-900 shadow-sm"
                     : "text-gray-500 hover:text-gray-700"
                 }`}
               >
-                <span>{tab.title}</span>
+                <span className="sm:hidden">{tab.shortTitle}</span>
+                <span className="hidden sm:inline">{tab.title}</span>
                 <span
                   className="w-2 h-2 rounded-full flex-shrink-0"
                   style={{ backgroundColor: scoreToColor(sectionScores[tab.id]) }}
@@ -758,7 +766,7 @@ function PaywallView({
         </div>
 
         {/* Conteúdo da aba — sempre o card de paywall, nunca detalhes */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-7 flex flex-col items-center gap-5 text-center">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 sm:px-5 py-7 flex flex-col items-center gap-5 text-center">
 
           {/* Cabeçalho */}
           <div>
@@ -799,7 +807,7 @@ function PaywallView({
             {polling ? "Aguardando confirmação do pagamento..." : paying ? "Abrindo pagamento..." : "Ver meu resultado completo — R$ 9,90"}
           </button>
           {polling ? (
-            <p className="text-xs text-indigo-500 -mt-2 animate-pulse">Confirme o PIX na aba que foi aberta</p>
+            <p className="text-xs text-indigo-500 -mt-2 animate-pulse hidden sm:block">Confirme o PIX na aba que foi aberta</p>
           ) : (
             <p className="text-xs text-gray-400 -mt-2">Pagamento seguro via PIX</p>
           )}
@@ -858,12 +866,16 @@ function ResultView({
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-10">
+    <main className="min-h-screen bg-gray-50 px-4 sm:px-6 py-10">
       <div className="max-w-2xl mx-auto space-y-6">
 
         {/* Top bar */}
-        <div className="flex items-start justify-between">
-          <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div className="order-1 sm:order-2 sm:text-right">
+            <p className="text-xs tracking-widest uppercase text-gray-400 font-medium">Análise ATS</p>
+            <h1 className="text-base sm:text-lg font-bold text-gray-900">Health Check do Currículo</h1>
+          </div>
+          <div className="order-2 sm:order-1 flex gap-2">
             <Button variant="outline" size="sm" onClick={onReset}>
               ← Nova Análise
             </Button>
@@ -871,10 +883,6 @@ function ResultView({
               <LogOut className="h-3.5 w-3.5" />
               Sair
             </Button>
-          </div>
-          <div className="text-right">
-            <p className="text-xs tracking-widest uppercase text-gray-400 font-medium">Análise ATS</p>
-            <h1 className="text-lg font-bold text-gray-900">Health Check do Currículo</h1>
           </div>
         </div>
 
@@ -904,18 +912,19 @@ function ResultView({
 
         {/* TabBar */}
         <div className="overflow-x-auto">
-          <div className="rounded-xl bg-gray-100 p-1 flex gap-1 min-w-max w-full">
+          <div className="rounded-xl bg-gray-100 p-1 flex gap-1 w-full">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 whitespace-nowrap ${
+                className={`flex-1 flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-xs font-medium transition-all duration-200 whitespace-nowrap ${
                   activeTab === tab.id
                     ? "bg-white text-gray-900 shadow-sm"
                     : "text-gray-500 hover:text-gray-700"
                 }`}
               >
-                <span>{tab.title}</span>
+                <span className="sm:hidden">{tab.shortTitle}</span>
+                <span className="hidden sm:inline">{tab.title}</span>
                 <span
                   className="w-2 h-2 rounded-full flex-shrink-0"
                   style={{ backgroundColor: scoreToColor(sectionScores[tab.id]) }}

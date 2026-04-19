@@ -95,12 +95,12 @@ export function FeedbackWidget() {
 
   return (
     <>
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+      <div className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end gap-3">
 
         {/* Expanded panel */}
         {open && (
           <div
-            className="bg-white rounded-2xl shadow-xl border border-gray-200 w-80 max-w-[calc(100vw-3rem)]"
+            className="bg-white rounded-2xl shadow-xl border border-gray-200 w-80 max-w-[calc(100vw-2rem)]"
             style={{ animation: "slideUpFade 0.2s ease-out" }}
           >
             {/* Header */}
@@ -237,7 +237,7 @@ export function FeedbackWidget() {
         {/* Floating button — always rendered, always clickable */}
         <button
           onClick={handleOpenPanel}
-          className={`flex items-center gap-2 rounded-full px-5 py-3 shadow-lg font-semibold text-white text-sm transition-transform hover:scale-105 ${
+          className={`flex items-center gap-2 rounded-full px-3 py-2 sm:px-5 sm:py-3 shadow-lg font-semibold text-white text-xs sm:text-sm transition-transform hover:scale-105 ${
             alreadyRated
               ? "bg-emerald-600 hover:bg-emerald-700"
               : pulsing
