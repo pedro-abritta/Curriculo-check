@@ -73,7 +73,7 @@ async def create_payment(
         preference_data = {
             "items": [
                 {
-                    "title": "ATS Analyzer - Resultado da Análise",
+                    "title": "Currículo Check - Resultado da Análise",
                     "quantity": 1,
                     "unit_price": PRODUCT_PRICE,
                     "currency_id": "BRL",

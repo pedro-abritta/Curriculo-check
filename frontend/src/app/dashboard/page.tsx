@@ -188,10 +188,10 @@ function InputView({
           onClose={() => onClearApiError?.()}
         />
       )}
-      <div className="w-full max-w-2xl mx-auto flex flex-col gap-8">
+      <div className="w-full max-w-4xl mx-auto flex flex-col gap-8">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-4xl font-bold tracking-tight text-gray-900">ATS Analyzer</h1>
+            <h1 className="text-4xl font-bold tracking-tight text-gray-900">Currículo Check</h1>
             <p className="mt-2 text-gray-500 text-lg">Análise inteligente de currículos</p>
           </div>
           <Button variant="outline" size="sm" onClick={onLogout} className="mt-2 gap-1.5">
@@ -717,13 +717,13 @@ function PaywallView({
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 sm:px-6 py-10">
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="max-w-4xl mx-auto space-y-6">
 
         {/* Top bar — idêntico ao ResultView */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div className="order-1 sm:order-2 sm:text-right">
-            <p className="text-xs tracking-widest uppercase text-gray-400 font-medium">Análise ATS</p>
-            <h1 className="text-base sm:text-lg font-bold text-gray-900">Health Check do Currículo</h1>
+            <p className="text-xs tracking-widest uppercase text-gray-400 font-medium">Resultado da Análise</p>
+            <h1 className="text-base sm:text-lg font-bold text-gray-900">Currículo Check</h1>
           </div>
           <div className="order-2 sm:order-1 flex gap-2">
             <Button variant="outline" size="sm" onClick={onReset}>
@@ -771,7 +771,7 @@ function PaywallView({
           {/* Cabeçalho */}
           <div>
             <h2 className="text-base font-bold text-gray-900">Seu currículo pode estar sendo eliminado automaticamente</h2>
-            <p className="mt-1 text-sm text-gray-500">Veja exatamente o que corrigir para passar nos filtros ATS</p>
+            <p className="mt-1 text-sm text-gray-500">Veja exatamente o que corrigir para passar nos filtros automáticos</p>
           </div>
 
           {/* Itens */}
@@ -779,7 +779,7 @@ function PaywallView({
             {[
               { Icon: Search,    text: "Skills que a vaga exige e você não mencionou" },
               { Icon: PenLine,   text: "Pontos fracos que fazem recrutadores descartarem seu currículo" },
-              { Icon: CalendarX, text: "Erros de formatação que sistemas ATS não perdoam" },
+              { Icon: CalendarX, text: "Erros de formatação que softwares de recrutamento não perdoam" },
               { Icon: Lightbulb, text: "Sugestões práticas para cada seção do seu currículo" },
               { Icon: BarChart3, text: "Análise detalhada com score por seção" },
             ].map(({ Icon, text }) => (
@@ -815,7 +815,7 @@ function PaywallView({
 
         {/* Footer */}
         <p className="text-center text-xs text-gray-400 pb-4">
-          · Análise ATS · Resultados gerados por IA
+          · Análise de Currículo · Resultados gerados por IA
         </p>
 
       </div>
@@ -867,13 +867,13 @@ function ResultView({
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 sm:px-6 py-10">
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="max-w-4xl mx-auto space-y-6">
 
         {/* Top bar */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div className="order-1 sm:order-2 sm:text-right">
-            <p className="text-xs tracking-widest uppercase text-gray-400 font-medium">Análise ATS</p>
-            <h1 className="text-base sm:text-lg font-bold text-gray-900">Health Check do Currículo</h1>
+            <p className="text-xs tracking-widest uppercase text-gray-400 font-medium">Resultado da Análise</p>
+            <h1 className="text-base sm:text-lg font-bold text-gray-900">Currículo Check</h1>
           </div>
           <div className="order-2 sm:order-1 flex gap-2">
             <Button variant="outline" size="sm" onClick={onReset}>
@@ -945,7 +945,7 @@ function ResultView({
 
         {/* Footer */}
         <p className="text-center text-xs text-gray-400 pb-4">
-          · Análise ATS · Resultados gerados por IA
+          · Análise de Currículo · Resultados gerados por IA
         </p>
 
       </div>

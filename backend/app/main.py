@@ -22,7 +22,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 
-app = FastAPI(title="ATS Backend")
+app = FastAPI(title="Curriculo Check Backend")
 
 # ── Rate limiting ─────────────────────────────────────────────────────────────
 

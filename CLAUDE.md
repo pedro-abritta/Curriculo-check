@@ -1,4 +1,4 @@
-# ATS Analyzer
+# Currículo Check
 
 ## Stack
 - Frontend: Next.js 14 (App Router), TypeScript, shadcn/ui, Tailwind CSS

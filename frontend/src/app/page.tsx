@@ -152,7 +152,7 @@ export default function LandingPage() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md"
         style={{ borderBottom: `1px solid ${BORDER}` }}>
         <div className="max-w-6xl mx-auto px-5 h-14 flex items-center justify-between">
-          <span className="font-bold text-base tracking-tight" style={{ color: TEXT }}>ATS Analyzer</span>
+          <span className="font-bold text-base tracking-tight" style={{ color: TEXT }}>Currículo Check</span>
           <Link href="/login"
             className="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors hover:bg-slate-100"
             style={{ border: `1px solid ${BORDER}`, color: MUTED }}>
@@ -262,7 +262,7 @@ export default function LandingPage() {
               style={{ border: `1px solid ${BORDER}` }}>
               <Image
                 src="/screenshots/dashboard.png"
-                alt="Resultado da análise ATS"
+                alt="Resultado da análise de currículo"
                 width={900}
                 height={600}
                 className="w-full h-auto object-cover"
@@ -348,7 +348,7 @@ export default function LandingPage() {
               Veja a diferença na prática
             </h2>
             <p className="text-sm mt-3" style={{ color: MUTED }}>
-              O ATS Analyzer mostra exatamente o que corrigir.
+              O Currículo Check mostra exatamente o que corrigir.
             </p>
           </motion.div>
 
@@ -387,7 +387,7 @@ export default function LandingPage() {
                 Currículo otimizado
               </p>
               <div className="flex flex-col gap-2.5">
-                {["Skills alinhadas à vaga", "Resultados quantificados", "Formato ATS-friendly"].map(t => (
+                {["Skills alinhadas à vaga", "Resultados quantificados", "Formato otimizado para recrutamento"].map(t => (
                   <span key={t} className="px-3 py-2 rounded-lg text-sm"
                     style={{ backgroundColor: "#ecfdf5", color: "#059669", border: "1px solid #a7f3d0" }}>
                     ✓ {t}
@@ -517,7 +517,7 @@ export default function LandingPage() {
       {/* ── Footer ─────────────────────────────────────────────────────────── */}
       <footer className="py-8 px-5 bg-slate-900">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm">
-          <span className="font-semibold text-white">ATS Analyzer</span>
+          <span className="font-semibold text-white">Currículo Check</span>
           <div className="flex items-center gap-6">
             <Link href="/login"
               className="transition-colors text-slate-400 hover:text-white">

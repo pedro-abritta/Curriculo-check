@@ -7,7 +7,7 @@ import { Wrench } from "lucide-react";
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "ATS Analyzer",
+  title: "Currículo Check",
   description: "Análise inteligente de currículos",
 };
 
@@ -24,7 +24,7 @@ export default function RootLayout({
         {MAINTENANCE ? (
           <main className="min-h-screen flex items-center justify-center bg-white px-4">
             <div className="flex flex-col items-center gap-6 text-center max-w-sm">
-              <span className="text-3xl font-bold tracking-tight text-gray-900">ATS Analyzer</span>
+              <span className="text-3xl font-bold tracking-tight text-gray-900">Currículo Check</span>
               <div className="flex items-center justify-center w-16 h-16 rounded-full bg-indigo-50">
                 <Wrench className="h-8 w-8 text-indigo-500" />
               </div>

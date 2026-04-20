@@ -1,4 +1,4 @@
-# ATS Analyzer
+# Currículo Check
 
 Monorepo com frontend (Next.js) e backend (FastAPI).
 
