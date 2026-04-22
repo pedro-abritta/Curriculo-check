@@ -7,6 +7,7 @@
 - Banco: Supabase (PostgreSQL + Auth)
 - Pagamento: Mercado Pago Checkout Pro (PIX)
 - Deploy: Vercel (front) + Railway (back)
+- CORS: https://curriculocheck.com.br, https://www.curriculocheck.com.br, https://curriculo-check.vercel.app (fallback), http://localhost:3000 (dev)
 
 ## Regras do Projeto
 - Scores arredondados com round() (nunca ceil)

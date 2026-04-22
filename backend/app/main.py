@@ -56,8 +56,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000",
-                   "https://curriculo-check.vercel.app"],
+    allow_origins=["https://curriculocheck.com.br",
+                   "https://www.curriculocheck.com.br",
+                   "https://curriculo-check.vercel.app",
+                   "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
