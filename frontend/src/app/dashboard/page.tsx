@@ -807,11 +807,7 @@ function PaywallView({
             disabled={paying || polling}
             className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-semibold rounded-xl py-3 px-8 transition-colors text-sm"
           >
-<<<<<<< Updated upstream
-            {paying ? "Redirecionando..." : "Ver meu resultado completo — R$ 9,90"}
-=======
             {polling ? "Aguardando confirmação do pagamento..." : paying ? "Abrindo pagamento..." : "Ver meu resultado completo — R$ 4,90"}
->>>>>>> Stashed changes
           </button>
           {polling ? (
             <p className="text-xs text-indigo-500 -mt-2 animate-pulse hidden sm:block">Confirme o PIX na aba que foi aberta</p>
