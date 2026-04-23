@@ -792,10 +792,10 @@ function PaywallView({
 
           {/* Comparação de preço */}
           <div className="rounded-xl bg-gray-50 border border-gray-100 px-4 py-3 flex flex-col items-center gap-0.5">
-            <span className="inline-flex text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 mb-1">Preço de lançamento</span>
             <span className="text-xs text-gray-400">Consultorias de currículo cobram até</span>
             <span className="text-xl font-semibold text-gray-300 line-through leading-tight">R$ 500,00</span>
             <span className="text-xs text-gray-400 mt-1">Aqui você paga apenas</span>
+            <span className="inline-flex text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 mb-1">Preço de lançamento</span>
             <span className="text-2xl font-bold text-indigo-600 leading-tight">R$ 4,90</span>
           </div>
 
