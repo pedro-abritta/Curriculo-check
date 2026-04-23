@@ -754,10 +754,11 @@ function PaywallView({
 
           {/* Comparação de preço */}
           <div className="rounded-xl bg-gray-50 border border-gray-100 px-4 py-3 flex flex-col items-center gap-0.5">
+            <span className="inline-flex text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 mb-1">Preço de lançamento</span>
             <span className="text-xs text-gray-400">Consultorias de currículo cobram até</span>
             <span className="text-xl font-semibold text-gray-300 line-through leading-tight">R$ 500,00</span>
             <span className="text-xs text-gray-400 mt-1">Aqui você paga apenas</span>
-            <span className="text-2xl font-bold text-indigo-600 leading-tight">R$ 9,90</span>
+            <span className="text-2xl font-bold text-indigo-600 leading-tight">R$ 4,90</span>
           </div>
 
           {/* CTA */}
@@ -766,7 +767,11 @@ function PaywallView({
             disabled={paying}
             className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-semibold rounded-xl py-3 px-8 transition-colors text-sm"
           >
+<<<<<<< Updated upstream
             {paying ? "Redirecionando..." : "Ver meu resultado completo — R$ 9,90"}
+=======
+            {polling ? "Aguardando confirmação do pagamento..." : paying ? "Abrindo pagamento..." : "Ver meu resultado completo — R$ 4,90"}
+>>>>>>> Stashed changes
           </button>
           <p className="text-xs text-gray-400 -mt-2">Pagamento seguro via PIX</p>
         </div>

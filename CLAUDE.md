@@ -120,7 +120,7 @@ Skills 40% + Resumo 25% + Impacto 20% + Datas 10% + Contato 5% (calculado no bac
 - `.env.example` com placeholders no repositório; `.env`/`.env.local` no `.gitignore`. Nunca commitar tokens reais
 
 ## Monetização
-- Mercado Pago Checkout Pro, PIX apenas, R$ 9,90/análise
+- Mercado Pago Checkout Pro, PIX apenas, R$ 4,90/análise (preço de lançamento)
 - Fluxo: análise grátis → resultado salvo em result_json → paywall → PIX → paid=true → resultado liberado
 - Credenciais de teste NÃO suportam PIX (usar produção)
 - Webhook configurado no painel do MP: `https://ats-analyzer-production.up.railway.app/api/payment/webhook` (público, sem autenticação)

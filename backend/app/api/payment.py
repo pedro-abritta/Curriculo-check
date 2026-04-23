@@ -20,7 +20,7 @@ MP_WEBHOOK_SECRET = os.environ.get("MP_WEBHOOK_SECRET")
 MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
-PRODUCT_PRICE = float(os.getenv("PRODUCT_PRICE", "9.90"))
+PRODUCT_PRICE = float(os.getenv("PRODUCT_PRICE", "4.90"))
 
 
 class CreatePaymentRequest(BaseModel):
@@ -182,7 +182,7 @@ async def payment_webhook(request: Request):
 
 
 @router.get("/payment/status/{analysis_id}")
-@limiter.limit("30/hour")
+@limiter.limit("120/hour")
 async def payment_status(
     request: Request,
     analysis_id: str,
