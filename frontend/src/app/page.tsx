@@ -582,6 +582,7 @@ export default function LandingPage() {
             </div>
 
             <p className="text-5xl font-bold mb-1" style={{ color: TEXT }}>R$ 4,90</p>
+<<<<<<< Updated upstream
             <p className="text-sm mb-8" style={{ color: MUTED }}>por análise via PIX</p>
 
             <div className="flex flex-col gap-3 mb-8 text-left">
@@ -626,6 +627,8 @@ export default function LandingPage() {
             <p className="text-xl font-semibold line-through mb-6 text-slate-300">R$ 500,00</p>
 
             <p className="text-5xl font-bold mb-1" style={{ color: TEXT }}>R$ 9,90</p>
+=======
+>>>>>>> Stashed changes
             <p className="text-sm mb-8" style={{ color: MUTED }}>por análise via PIX</p>
 
             <div className="flex flex-col gap-3 mb-8 text-left">
