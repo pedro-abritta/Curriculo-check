@@ -159,7 +159,7 @@ async def analyze(
         formatting_warnings.append(
             "Detectamos que seu currículo usa títulos com espaços entre letras "
             "(ex: 'P R O F E S S I O N A L'). Isso pode dificultar a leitura por "
-            "sistemas ATS reais. Recomendamos usar formatação padrão."
+            "softwares de recrutamento reais. Recomendamos usar formatação padrão."
         )
     if _has_spaced_name(resume_text):
         formatting_warnings.append(

@@ -44,7 +44,7 @@ export default function LoginPage() {
     <main className="min-h-screen flex items-center justify-center bg-white px-4 py-12">
       <div className="w-full max-w-sm flex flex-col gap-8">
         <div className="text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-gray-900">ATS Analyzer</h1>
+          <h1 className="text-4xl font-bold tracking-tight text-gray-900">Currículo Check</h1>
           <p className="mt-2 text-gray-500 text-lg">Análise inteligente de currículos</p>
         </div>
 

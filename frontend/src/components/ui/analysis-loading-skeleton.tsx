@@ -17,6 +17,13 @@ const SKELETON_SECTIONS = [
   { lines: 2, tags: false },  // Contato
 ];
 
+const MOBILE_MESSAGES = [
+  "Verificando formatação...",
+  "Analisando skills...",
+  "Comparando com a vaga...",
+  "Calculando score...",
+];
+
 // ─── Shimmer bar ─────────────────────────────────────────────────────────────
 
 function ShimmerBar({ width = "100%", height = "h-3" }: { width?: string; height?: string }) {
@@ -32,18 +39,17 @@ function ShimmerBar({ width = "100%", height = "h-3" }: { width?: string; height
 
 // ─── Skeleton Card (forwardRef so parent can measure position) ────────────────
 
-const SkeletonCard = forwardRef<HTMLDivElement, { index: number }>(
-  function SkeletonCard({ index }, ref) {
+const SkeletonCard = forwardRef<HTMLDivElement, { index: number; className?: string }>(
+  function SkeletonCard({ index, className = "" }, ref) {
     const { lines, tags } = SKELETON_SECTIONS[index] ?? { lines: 3, tags: false };
 
     return (
       <motion.div
         ref={ref}
-        // flex-basis mirrors the lg:3-col grid — 3 cards top row, 2 bottom (centred by justify-center)
-        className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-4
+        className={`bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-4
                    w-full
                    sm:w-[calc(50%-0.5rem)]
-                   lg:w-[calc(33.333%-0.667rem)]"
+                   lg:w-[calc(33.333%-0.667rem)] ${className}`}
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.1, duration: 0.4, ease: "easeOut" }}
@@ -148,6 +154,26 @@ function TabBarSkeleton() {
   );
 }
 
+// ─── Mobile spinner + rotating message ───────────────────────────────────────
+
+function MobileLoadingIndicator({ msgIndex }: { msgIndex: number }) {
+  return (
+    <div className="sm:hidden flex flex-col items-center gap-2 py-2">
+      <div className="w-8 h-8 rounded-full border-4 border-indigo-600 border-t-transparent animate-spin" />
+      <p className="text-sm font-medium text-gray-700">Analisando seu currículo...</p>
+      <motion.p
+        key={msgIndex}
+        className="text-xs text-indigo-500"
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        {MOBILE_MESSAGES[msgIndex]}
+      </motion.p>
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function AnalysisLoadingSkeleton() {
@@ -155,17 +181,26 @@ export function AnalysisLoadingSkeleton() {
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const controls = useAnimation();
   const [isMounted, setIsMounted] = useState(false);
+  const [msgIndex, setMsgIndex] = useState(0);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
+  // Rotating messages for mobile
+  useEffect(() => {
+    const id = setInterval(() => {
+      setMsgIndex((i) => (i + 1) % MOBILE_MESSAGES.length);
+    }, 3000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Desktop: lupa animation between cards
   useEffect(() => {
     if (!isMounted) return;
 
     let active = true;
 
-    // Small delay to ensure the layout has painted before measuring
     const timer = setTimeout(() => {
       const container = containerRef.current;
       if (!container || !active) return;
@@ -230,11 +265,14 @@ export function AnalysisLoadingSkeleton() {
         {/* Tab bar */}
         <TabBarSkeleton />
 
-        {/* Cards — container is the positioning reference for the icon */}
+        {/* Mobile: spinner + rotating message */}
+        <MobileLoadingIndicator msgIndex={msgIndex} />
+
+        {/* Cards — container is the positioning reference for the desktop icon */}
         <div ref={containerRef} className="relative overflow-hidden">
-          {/* Floating search icon */}
+          {/* Floating search icon — desktop only */}
           <motion.div
-            className="absolute z-10 pointer-events-none"
+            className="absolute z-10 pointer-events-none hidden sm:block"
             animate={controls}
           >
             <motion.div
@@ -246,12 +284,13 @@ export function AnalysisLoadingSkeleton() {
             </motion.div>
           </motion.div>
 
-          {/* Flex wrap: 3 cards top row, 2 cards bottom row centred */}
+          {/* Cards: all 5 on desktop, first 3 on mobile */}
           <div className="flex flex-wrap justify-center gap-4">
             {SKELETON_SECTIONS.map((_, i) => (
               <SkeletonCard
                 key={i}
                 index={i}
+                className={i >= 3 ? "hidden sm:block" : ""}
                 ref={(el) => { cardRefs.current[i] = el; }}
               />
             ))}
