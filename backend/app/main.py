@@ -1,4 +1,5 @@
 import logging
+import os
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
@@ -22,7 +23,12 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 
-app = FastAPI(title="Curriculo Check Backend")
+ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
+
+if ENVIRONMENT == "production":
+    app = FastAPI(title="Curriculo Check Backend", docs_url=None, redoc_url=None, openapi_url=None)
+else:
+    app = FastAPI(title="Curriculo Check Backend")
 
 # ── Rate limiting ─────────────────────────────────────────────────────────────
 
