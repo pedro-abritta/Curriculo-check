@@ -1,3 +1,9 @@
+from app.api.analysis import router as analysis_router
+from app.api.analyze import router as analyze_router
+from app.api.auth import router as auth_router
+from app.api.feedback import router as feedback_router
+from app.api.payment import router as payment_router
+from app.limiter import limiter
 import logging
 import os
 
@@ -10,13 +16,6 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 load_dotenv()
 
-from app.limiter import limiter
-from app.api.payment import router as payment_router
-from app.api.feedback import router as feedback_router
-from app.api.auth import router as auth_router
-from app.api.analyze import router as analyze_router
-from app.api.analysis import router as analysis_router
-
 
 logging.basicConfig(
     level=logging.INFO,
@@ -26,7 +25,8 @@ logging.basicConfig(
 ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
 
 if ENVIRONMENT == "production":
-    app = FastAPI(title="Curriculo Check Backend", docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="Curriculo Check Backend", docs_url=None,
+                  redoc_url=None, openapi_url=None)
 else:
     app = FastAPI(title="Curriculo Check Backend")
 
@@ -52,7 +52,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         if "server" in response.headers:
             del response.headers["server"]
