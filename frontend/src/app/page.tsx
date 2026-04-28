@@ -452,11 +452,7 @@ export default function LandingPage() {
             <p className="text-sm mb-1 text-slate-400">Consultorias cobram até</p>
             <p className="text-xl font-semibold line-through mb-6 text-slate-300">R$ 500,00</p>
 
-            <div className="mb-3 inline-flex">
-              <span className="text-xs font-semibold px-3 py-1 rounded-full bg-green-100 text-green-700">Preço de lançamento</span>
-            </div>
-
-            <p className="text-5xl font-bold mb-1" style={{ color: TEXT }}>R$ 4,90</p>
+            <p className="text-5xl font-bold mb-1" style={{ color: TEXT }}>R$ 9,90</p>
             <p className="text-sm mb-8" style={{ color: MUTED }}>por análise via PIX</p>
 
             <div className="flex flex-col gap-3 mb-8 text-left">
