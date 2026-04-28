@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { FeedbackWidget } from "@/components/FeedbackWidget";
 import { Wrench } from "lucide-react";
+import { Analytics } from "@vercel/analytics/react";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -42,6 +43,7 @@ export default function RootLayout({
             <FeedbackWidget />
           </>
         )}
+        <Analytics />
       </body>
     </html>
   );
